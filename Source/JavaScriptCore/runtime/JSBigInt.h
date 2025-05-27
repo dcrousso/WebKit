@@ -82,6 +82,8 @@ public:
 
     static JSBigInt* createFrom(JSGlobalObject*, VM&, int32_t value);
 
+    static JSBigInt* copy(JSGlobalObject*, JSBigInt*);
+
     static constexpr size_t offsetOfLength()
     {
         return OBJECT_OFFSETOF(JSBigInt, m_length);
@@ -105,6 +107,7 @@ public:
     bool sign() const { return m_sign; }
 
     unsigned length() const { return m_length; }
+    unsigned bitLength() const;
 
     ALWAYS_INLINE static JSValue makeHeapBigIntOrBigInt32(JSGlobalObject* globalObject, int64_t value)
     {
@@ -480,7 +483,7 @@ public:
         return static_cast<int64_t>(toBigUInt64Heap(bigInt.asHeapBigInt()));
     }
 
-    Digit digit(unsigned);
+    Digit digit(unsigned) const;
     void setDigit(unsigned, Digit); // Use only when initializing.
     JS_EXPORT_PRIVATE JSBigInt* rightTrim(JSGlobalObject*);
     JS_EXPORT_PRIVATE JSBigInt* tryRightTrim(VM&);
@@ -638,7 +641,7 @@ private:
 
     JS_EXPORT_PRIVATE static uint64_t toBigUInt64Heap(JSBigInt*);
 
-    inline Digit* dataStorage() { return m_data.get(); }
+    inline Digit* dataStorage() const { return m_data.get(); }
     inline Digit* dataStorageUnsafe() { return m_data.getUnsafe(); }
 
     const unsigned m_length;
@@ -653,7 +656,7 @@ inline JSBigInt* asHeapBigInt(JSValue value)
     return jsCast<JSBigInt*>(value.asCell());
 }
 
-inline JSBigInt::Digit JSBigInt::digit(unsigned n)
+inline JSBigInt::Digit JSBigInt::digit(unsigned n) const
 {
     ASSERT(n < length());
     return dataStorage()[n];

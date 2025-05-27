@@ -378,9 +378,37 @@ JSBigInt* JSBigInt::createFrom(JSGlobalObject* globalObject, double value)
     RELEASE_AND_RETURN(scope, result->rightTrim(globalObject));
 }
 
+JSBigInt* JSBigInt::copy(JSGlobalObject* globalObject, JSBigInt* bigInt)
+{
+    VM& vm = globalObject->vm();
+    auto scope = DECLARE_THROW_SCOPE(vm);
+
+    unsigned length = bigInt->length();
+
+    JSBigInt* result = createWithLength(globalObject, length);
+    RETURN_IF_EXCEPTION(scope, nullptr);
+    ASSERT(result);
+    result->initialize(InitializationType::None);
+
+    result->setSign(bigInt->sign());
+
+    for (unsigned i = 0; i < length; ++i)
+        result->setDigit(i, bigInt->digit(i));
+
+    RELEASE_AND_RETURN(scope, result);
+}
+
 JSValue JSBigInt::toPrimitive(JSGlobalObject*, PreferredPrimitiveType) const
 {
     return const_cast<JSBigInt*>(this);
+}
+
+unsigned JSBigInt::bitLength() const
+{
+    if (isZero())
+        return 1;
+
+    return m_length * digitBits - clz(digit(m_length - 1));
 }
 
 JSValue JSBigInt::parseInt(JSGlobalObject* globalObject, StringView s, ErrorParseMode parserMode)
