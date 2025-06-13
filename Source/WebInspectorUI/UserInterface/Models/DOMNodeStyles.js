@@ -922,10 +922,28 @@ WI.DOMNodeStyles = class DOMNodeStyles extends WI.Object
                             property.overridingProperty = effectiveProperty;
                             continue;
                         }
-                    } else if (effectiveProperty.important || !property.important || effectiveProperty.ownerStyle.node !== property.ownerStyle.node) {
-                        property.overridden = true;
-                        property.overridingProperty = effectiveProperty;
-                        continue;
+                    } else {
+                        let propertyIsLessImportant = property.ownerStyle.isStartingStyle;
+                        let effectivePropertyIsLessImportant = effectiveProperty.ownerStyle.isStartingStyle;
+
+                        if (effectivePropertyIsLessImportant && !propertyIsLessImportant && !property.anonymous) {
+                            effectiveProperty.overridden = true;
+                            effectiveProperty.overridingProperty = property;
+                            propertyNameToEffectiveProperty[canonicalName] = property;
+                            continue;
+                        }
+
+                        if (propertyIsLessImportant && !effectivePropertyIsLessImportant) {
+                            property.overridden = true;
+                            property.overridingProperty = effectiveProperty;
+                            continue;
+                        }
+
+                        if (effectiveProperty.important || !property.important || effectiveProperty.ownerStyle.node !== property.ownerStyle.node) {
+                            property.overridden = true;
+                            property.overridingProperty = effectiveProperty;
+                            continue;
+                        }
                     }
 
                     if (!property.anonymous) {
