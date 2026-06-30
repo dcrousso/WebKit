@@ -1040,13 +1040,15 @@ RefPtr<StyleRuleKeyframes> CSSParser::consumeKeyframesRule(CSSParserTokenRange p
         observerWrapper->observer().startRuleHeader(StyleRuleType::Keyframes, observerWrapper->startOffset(rangeCopy));
         observerWrapper->observer().endRuleHeader(observerWrapper->endOffset(prelude));
         observerWrapper->observer().startRuleBody(observerWrapper->previousTokenStartOffset(block));
-        observerWrapper->observer().endRuleBody(observerWrapper->endOffset(block));
     }
 
     auto keyframeRule = StyleRuleKeyframes::create(name);
     consumeRuleList(block, RuleList::Keyframes, [keyframeRule](Ref<StyleRuleBase> keyframe) {
         keyframeRule->parserAppendKeyframe(downcast<const StyleRuleKeyframe>(keyframe.ptr()));
     });
+
+    if (RefPtr observerWrapper = m_observerWrapper.get())
+        observerWrapper->observer().endRuleBody(observerWrapper->endOffset(block));
 
     keyframeRule->shrinkToFit();
     return keyframeRule;
@@ -1501,13 +1503,14 @@ RefPtr<StyleRuleProperty> CSSParser::consumePropertyRule(CSSParserTokenRange pre
 
 RefPtr<StyleRuleKeyframe> CSSParser::consumeKeyframeStyleRule(CSSParserTokenRange prelude, CSSParserTokenRange block)
 {
+    auto originalPrelude = prelude;
     auto state = CSS::PropertyParserState { .context = m_context };
     auto keyList = CSSPropertyParserHelpers::consumeKeyframeKeyList(prelude, state);
     if (keyList.isEmpty())
         return nullptr;
 
     if (RefPtr observerWrapper = m_observerWrapper.get()) {
-        observerWrapper->observer().startRuleHeader(StyleRuleType::Keyframe, observerWrapper->startOffset(prelude));
+        observerWrapper->observer().startRuleHeader(StyleRuleType::Keyframe, observerWrapper->startOffset(originalPrelude));
         observerWrapper->observer().endRuleHeader(observerWrapper->endOffset(prelude));
     }
 

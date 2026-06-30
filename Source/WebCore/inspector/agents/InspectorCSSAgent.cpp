@@ -27,7 +27,10 @@
 #include "InspectorCSSAgent.h"
 
 #include "CSSComputedStyleDeclaration.h"
+#include "CSSGroupingRule.h"
 #include "CSSImportRule.h"
+#include "CSSKeyframeRule.h"
+#include "CSSKeyframesRule.h"
 #include "CSSNestedDeclarations.h"
 #include "CSSParserContext.h"
 #include "CSSPropertyNames.h"
@@ -78,6 +81,7 @@
 #include "StylePropertyShorthand.h"
 #include "StyleResolver.h"
 #include "StyleRule.h"
+#include "StyleScope.h"
 #include "StyleSheetContents.h"
 #include "StyleSheetList.h"
 #include <JavaScriptCore/InspectorProtocolObjects.h>
@@ -290,7 +294,7 @@ std::optional<Inspector::Protocol::CSS::PseudoId> InspectorCSSAgent::protocolVal
     }
 }
 
-Inspector::Protocol::ErrorStringOr<std::tuple<RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::RuleMatch>>, RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::PseudoIdMatches>>, RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::InheritedStyleEntry>>>> InspectorCSSAgent::getMatchedStylesForNode(Inspector::Protocol::DOM::NodeId nodeId, std::optional<bool>&& includePseudo, std::optional<bool>&& includeInherited)
+Inspector::Protocol::ErrorStringOr<std::tuple<RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::RuleMatch>>, RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::PseudoIdMatches>>, RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::InheritedStyleEntry>>, RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::CSSRule>>>> InspectorCSSAgent::getMatchedStylesForNode(Inspector::Protocol::DOM::NodeId nodeId, std::optional<bool>&& includePseudo, std::optional<bool>&& includeInherited, std::optional<bool>&& includeKeyframes)
 {
     Inspector::Protocol::ErrorString errorString;
 
@@ -343,6 +347,10 @@ Inspector::Protocol::ErrorStringOr<std::tuple<RefPtr<JSON::ArrayOf<Inspector::Pr
                             .setPseudoId(protocolPseudoId.value())
                             .setMatches(buildArrayForMatchedRuleList(matchedRules, styleResolver, *element, pseudoElementIdentifier))
                             .release();
+                        if (!includeKeyframes || *includeKeyframes) {
+                            if (CheckedPtr pseudoComputedStyle = element->computedStyle(pseudoElementIdentifier))
+                                matches->setKeyframes(buildArrayForKeyframes(*element, *pseudoComputedStyle));
+                        }
                         pseudoElements->addItem(WTF::move(matches));
                     }
                 }
@@ -366,7 +374,13 @@ Inspector::Protocol::ErrorStringOr<std::tuple<RefPtr<JSON::ArrayOf<Inspector::Pr
         }
     }
 
-    return { { WTF::move(matchedCSSRules), WTF::move(pseudoElements), WTF::move(inherited) } };
+    RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::CSSRule>> keyframes;
+    if (!includeKeyframes || *includeKeyframes) {
+        if (CheckedPtr elementComputedStyle = element->computedStyle(elementPseudoId))
+            keyframes = buildArrayForKeyframes(*element, *elementComputedStyle);
+    }
+
+    return { { WTF::move(matchedCSSRules), WTF::move(pseudoElements), WTF::move(inherited), WTF::move(keyframes) } };
 }
 
 Inspector::Protocol::ErrorStringOr<std::tuple<RefPtr<Inspector::Protocol::CSS::CSSStyle> /* inlineStyle */, RefPtr<Inspector::Protocol::CSS::CSSStyle> /* attributesStyle */>> InspectorCSSAgent::getInlineStylesForNode(Inspector::Protocol::DOM::NodeId nodeId)
@@ -1191,7 +1205,7 @@ RefPtr<Inspector::Protocol::CSS::CSSRule> InspectorCSSAgent::buildObjectForRule(
     if (RefPtr shadowRoot = element.shadowRoot())
         styleResolver.inspectorCSSOMWrappers().collectScopeWrappers(protect(shadowRoot->styleScope()));
 
-    if (RefPtr cssomWrapper = styleResolver.inspectorCSSOMWrappers().getWrapperForRuleInSheets(styleRule))
+    if (RefPtr cssomWrapper = styleResolver.inspectorCSSOMWrappers().getWrapperForStyleRuleInSheets(styleRule))
         return buildObjectForRule(cssomWrapper.get());
 
     RefPtr nestedDeclarationsWrapper = styleResolver.inspectorCSSOMWrappers().getWrapperForNestedDeclarationsRuleInSheets(styleRule);
@@ -1236,6 +1250,46 @@ Ref<JSON::ArrayOf<Inspector::Protocol::CSS::RuleMatch>> InspectorCSSAgent::build
             .setMatchingSelectors(WTF::move(matchingSelectors))
             .release();
         result->addItem(WTF::move(match));
+    }
+
+    return result;
+}
+
+Ref<JSON::ArrayOf<Inspector::Protocol::CSS::CSSRule>> InspectorCSSAgent::buildArrayForKeyframes(Element& element, const Style::ComputedStyle& computedStyle)
+{
+    auto result = JSON::ArrayOf<Inspector::Protocol::CSS::CSSRule>::create();
+
+    if (computedStyle.animations().isInitial())
+        return result;
+
+    HashSet<CSSKeyframesRule*> seenKeyframesRules;
+    for (auto& animation : computedStyle.animations().usedValues()) {
+        auto keyframesName = animation.name().tryKeyframesName();
+        if (!keyframesName || keyframesName->name.isEmpty())
+            continue;
+
+        CheckedPtr styleScope = Style::Scope::forOrdinal(element, keyframesName->scopeOrdinal);
+        if (!styleScope)
+            continue;
+
+        Ref styleResolver = styleScope->resolver();
+        RefPtr styleRule = styleResolver->keyframesRuleForName(keyframesName->name);
+        if (!styleRule)
+            continue;
+
+        auto& wrappers = styleResolver->inspectorCSSOMWrappers();
+        if (auto* extensionStyleSheets = styleResolver->document().extensionStyleSheetsIfExists())
+            wrappers.collectDocumentWrappers(*extensionStyleSheets);
+        wrappers.collectScopeWrappers(*styleScope);
+
+        RefPtr keyframesRule = wrappers.getWrapperForKeyframesRuleInSheets(styleRule.get());
+        if (!keyframesRule || !seenKeyframesRules.add(keyframesRule.get()).isNewEntry)
+            continue;
+
+        for (unsigned i = 0; i < keyframesRule->length(); ++i) {
+            if (auto protocolKeyframe = buildObjectForRule(protect(keyframesRule->item(i))))
+                result->addItem(protocolKeyframe.releaseNonNull());
+        }
     }
 
     return result;

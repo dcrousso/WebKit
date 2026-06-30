@@ -211,6 +211,7 @@ public:
     RefPtr<Inspector::Protocol::CSS::CSSRule> buildObjectForRule(CSSRule*);
     Ref<Inspector::Protocol::CSS::CSSStyle> buildObjectForStyle(CSSStyleDeclaration*);
     RefPtr<Inspector::Protocol::CSS::Grouping> buildObjectForGrouping(CSSRule*);
+    Ref<JSON::ArrayOf<Inspector::Protocol::CSS::Grouping>> buildArrayForGroupings(CSSRule&);
 
     virtual ExceptionOr<void> setRuleStyleText(const InspectorCSSId&, const String& newStyleDeclarationText, String* outOldStyleDeclarationText, const String* newRuleText, String* outOldRuleText);
 
@@ -247,10 +248,9 @@ private:
     bool inlineStyleSheetText(String* result) const;
     bool extensionStyleSheetText(String* result) const;
     bool styleSheetTextFromCSSRuleSerialization(String* result) const;
-    Ref<JSON::ArrayOf<Inspector::Protocol::CSS::Grouping>> buildArrayForGroupings(CSSRule&);
     Ref<JSON::ArrayOf<Inspector::Protocol::CSS::CSSRule>> buildArrayForRuleList(CSSRuleList*);
     Ref<Inspector::Protocol::CSS::CSSSelector> buildObjectForSelector(const CSSSelector*);
-    Ref<Inspector::Protocol::CSS::SelectorList> buildObjectForSelectorList(CSSStyleRule*, int& endingLine);
+    RefPtr<Inspector::Protocol::CSS::SelectorList> buildObjectForSelectorList(CSSRule*, int& endingLine);
 
     Vector<Ref<CSSStyleRule>> cssStyleRulesSplitFromSameRule(CSSStyleRule&);
     Vector<const CSSSelector*> selectorsForCSSStyleRule(CSSStyleRule&);

@@ -478,20 +478,23 @@ static std::pair<SingleAnimationRangeName, Percentage<>> deprecatedStyleRuleKeyf
     return { offsetRangeName, offsetPercentage };
 }
 
-Vector<Ref<StyleRuleKeyframe>> Resolver::keyframeRulesForName(const AtomString& animationName, const TimingFunction* defaultTimingFunction) const
+RefPtr<StyleRuleKeyframes> Resolver::keyframesRuleForName(const AtomString& animationName) const
 {
     if (animationName.isEmpty())
-        return { };
+        return nullptr;
 
     m_keyframesRuleMap.checkConsistency();
 
-    // Check author map first then check user-agent map.
-    auto it = m_keyframesRuleMap.find(animationName);
-    if (it == m_keyframesRuleMap.end()) {
-        it = userAgentKeyframes().find(animationName);
-        if (it == userAgentKeyframes().end())
-            return { };
-    }
+    if (RefPtr rule = m_keyframesRuleMap.get(animationName))
+        return rule;
+    return userAgentKeyframes().get(animationName);
+}
+
+Vector<Ref<StyleRuleKeyframe>> Resolver::keyframeRulesForName(const AtomString& animationName, const TimingFunction* defaultTimingFunction) const
+{
+    RefPtr keyframesRule = keyframesRuleForName(animationName);
+    if (!keyframesRule)
+        return { };
 
     auto compositeOperationForKeyframe = [](Ref<StyleRuleKeyframe> keyframe) -> CompositeOperation {
         if (auto compositeOperationCSSValue = keyframe->properties().getPropertyCSSValue(CSSPropertyAnimationComposition)) {
@@ -522,7 +525,6 @@ Vector<Ref<StyleRuleKeyframe>> Resolver::keyframeRulesForName(const AtomString& 
         return timingFunction;
     };
 
-    Ref keyframesRule = it->value;
     auto* keyframes = &keyframesRule->keyframes();
 
     using KeyframeUniqueKey = std::tuple<SingleAnimationRangeName, double, Ref<const TimingFunction>, CompositeOperation>;

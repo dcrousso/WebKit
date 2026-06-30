@@ -51,6 +51,7 @@ class StyledElement;
 class StyleRule;
 
 namespace Style {
+class ComputedStyle;
 class Resolver;
 struct PseudoElementIdentifier;
 }
@@ -75,7 +76,7 @@ public:
     Inspector::CommandResult<Ref<JSON::ArrayOf<Inspector::Protocol::CSS::CSSComputedStyleProperty>>> getComputedStyleForNode(Inspector::Protocol::DOM::NodeId) override;
     Inspector::CommandResult<Ref<Inspector::Protocol::CSS::Font>> getFontDataForNode(Inspector::Protocol::DOM::NodeId) override;
     Inspector::CommandResultOf<RefPtr<Inspector::Protocol::CSS::CSSStyle>, RefPtr<Inspector::Protocol::CSS::CSSStyle>> getInlineStylesForNode(Inspector::Protocol::DOM::NodeId) override;
-    Inspector::CommandResultOf<RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::RuleMatch>>, RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::PseudoIdMatches>>, RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::InheritedStyleEntry>>> getMatchedStylesForNode(Inspector::Protocol::DOM::NodeId, std::optional<bool>&& includePseudo, std::optional<bool>&& includeInherited) override;
+    Inspector::CommandResultOf<RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::RuleMatch>>, RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::PseudoIdMatches>>, RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::InheritedStyleEntry>>, RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::CSSRule>>> getMatchedStylesForNode(Inspector::Protocol::DOM::NodeId, std::optional<bool>&& includePseudo, std::optional<bool>&& includeInherited, std::optional<bool>&& includeKeyframes) override;
     Inspector::CommandResult<Ref<JSON::ArrayOf<Inspector::Protocol::CSS::CSSStyleSheetHeader>>> getAllStyleSheets() override;
     Inspector::CommandResult<Ref<Inspector::Protocol::CSS::CSSStyleSheetBody>> getStyleSheet(const Inspector::Protocol::CSS::StyleSheetId&) override;
     Inspector::CommandResult<String> getStyleSheetText(const Inspector::Protocol::CSS::StyleSheetId&) override;
@@ -110,6 +111,8 @@ private:
     RefPtr<Inspector::Protocol::CSS::CSSRule> buildObjectForRule(const StyleRule*, Style::Resolver&, Element&);
     RefPtr<Inspector::Protocol::CSS::CSSRule> buildObjectForRule(CSSRule*);
     Ref<JSON::ArrayOf<Inspector::Protocol::CSS::RuleMatch>> buildArrayForMatchedRuleList(const Vector<Ref<const StyleRule>>&, Style::Resolver&, Element&, std::optional<Style::PseudoElementIdentifier>);
+    Ref<JSON::ArrayOf<Inspector::Protocol::CSS::CSSRule>> buildArrayForKeyframes(Element&, const Style::ComputedStyle&);
+    void collectAllStyleSheets(Vector<InspectorStyleSheet*>&);
     void collectAllDocumentStyleSheets(Document&, Vector<CSSStyleSheet*>&);
     void collectStyleSheets(CSSStyleSheet*, Vector<CSSStyleSheet*>&);
     void setActiveStyleSheetsForDocument(Document&, Vector<CSSStyleSheet*>&);

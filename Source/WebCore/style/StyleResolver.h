@@ -151,6 +151,7 @@ public:
     static KeyframesRuleMap& NODELETE userAgentKeyframes();
     static void addUserAgentKeyframeStyle(Ref<StyleRuleKeyframes>&&);
     void addKeyframeStyle(Ref<StyleRuleKeyframes>&&);
+    RefPtr<StyleRuleKeyframes> keyframesRuleForName(const AtomString&) const;
     Vector<Ref<StyleRuleKeyframe>> keyframeRulesForName(const AtomString&, const TimingFunction*) const;
 
     const CustomFunctionRegistry* NODELETE customFunctionRegistry() const;
