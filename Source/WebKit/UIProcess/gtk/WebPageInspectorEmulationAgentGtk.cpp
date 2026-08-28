@@ -29,6 +29,7 @@
 #include "WebPageProxy.h"
 #include "GtkUtilities.h"
 #include "GtkVersioning.h"
+#include "WebKitWebViewPrivate.h"
 #include <WebCore/IntSize.h>
 #include <gtk/gtk.h>
 
@@ -55,6 +56,21 @@ void WebPageInspectorEmulationAgent::platformSetSize(int width, int height, Func
     }
     if (!GTK_IS_WINDOW(window)) {
         callback("Toplevel is not a window"_s);
+        return;
+    }
+    if (gtk_window_is_maximized(GTK_WINDOW(window))) {
+        webkitWebViewRestoreWindow(WEBKIT_WEB_VIEW(viewWidget), [weakThis = WeakPtr { *this }, width, height, callback = WTF::move(callback)] mutable {
+            if (!weakThis) {
+                callback("Page is closed"_s);
+                return;
+            }
+            auto* window = gtk_widget_get_toplevel(weakThis->m_page->viewWidget());
+            if (window && GTK_IS_WINDOW(window) && gtk_window_is_maximized(GTK_WINDOW(window))) {
+                callback("Failed to restore window"_s);
+                return;
+            }
+            weakThis->platformSetSize(width, height, WTF::move(callback));
+        });
         return;
     }
     GtkAllocation viewAllocation;
