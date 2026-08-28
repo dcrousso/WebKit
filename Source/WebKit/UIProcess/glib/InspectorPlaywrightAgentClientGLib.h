@@ -47,6 +47,7 @@ public:
     void closeBrowser() override;
     std::unique_ptr<BrowserContext> createBrowserContext(WTF::String& error, const WTF::String& proxyServer, const WTF::String& proxyBypassList) override;
     void deleteBrowserContext(WTF::String& error, PAL::SessionID) override;
+    void maximizeWindow(WebPageProxy&, CompletionHandler<void(const String&)>&&) override;
     void takePageScreenshot(WebPageProxy&, WebCore::IntRect&& clip, bool nominalResolution, CompletionHandler<void(const String&, const String&)>&& completionHandler) override;
 
 private:

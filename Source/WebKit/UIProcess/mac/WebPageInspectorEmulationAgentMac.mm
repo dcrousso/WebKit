@@ -33,6 +33,8 @@ namespace WebKit {
 void WebPageInspectorEmulationAgent::platformSetSize(int width, int height, Function<void (const String& error)>&& callback)
 {
     NSWindow* window = m_page.platformWindow();
+    if ([window isZoomed])
+        [window zoom:nil];
     NSRect windowRect = [window frame];
     NSRect viewRect = window.contentLayoutRect;
     windowRect.size.width += width - viewRect.size.width;

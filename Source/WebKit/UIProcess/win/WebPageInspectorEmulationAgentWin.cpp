@@ -33,6 +33,8 @@ void WebPageInspectorEmulationAgent::platformSetSize(int width, int height, Func
 {
     HWND viewHwnd = reinterpret_cast<HWND>(m_page.viewWidget());
     HWND windowHwnd = GetAncestor(viewHwnd, GA_ROOT);
+    if (windowHwnd && IsZoomed(windowHwnd))
+        ShowWindow(windowHwnd, SW_RESTORE);
     RECT viewRect;
     RECT windowRect;
 

@@ -130,6 +130,14 @@
             ]
         },
         {
+            "name": "maximizeWindow",
+            "async": true,
+            "description": "Maximizes the native browser window.",
+            "parameters": [
+                { "name": "pageProxyId", "$ref": "PageProxyID", "description": "Unique identifier of the page proxy." }
+            ]
+        },
+        {
             "name": "navigate",
             "async": true,
             "description": "Navigates current page to the given URL.",

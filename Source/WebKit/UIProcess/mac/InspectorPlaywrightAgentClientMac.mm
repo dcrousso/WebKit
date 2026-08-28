@@ -35,8 +35,10 @@
 #import "WKWebsiteDataStoreInternal.h"
 #import "WKWebView.h"
 #import "WKWebViewInternal.h"
+#import <AppKit/NSWindow.h>
 #import <WebCore/ImageUtilities.h>
 #import <wtf/RefPtr.h>
+#import <wtf/RunLoop.h>
 #import <wtf/text/WTFString.h>
 
 namespace WebKit {
@@ -75,6 +77,38 @@ std::unique_ptr<BrowserContext> InspectorPlaywrightAgentClientMac::createBrowser
 void InspectorPlaywrightAgentClientMac::deleteBrowserContext(WTF::String& error, PAL::SessionID sessionID)
 {
     [delegate_ deleteBrowserContext:sessionID.toUInt64()];
+}
+
+static void waitForWindowMaximized(RetainPtr<NSWindow>&& window, unsigned attempts, CompletionHandler<void(const String&)>&& completionHandler)
+{
+    if ([window isZoomed]) {
+        completionHandler({ });
+        return;
+    }
+    if (!attempts) {
+        completionHandler("Timed out while maximizing browser window"_s);
+        return;
+    }
+    RunLoop::mainSingleton().dispatchAfter(100_ms, [window = WTF::move(window), attempts, completionHandler = WTF::move(completionHandler)]() mutable {
+        waitForWindowMaximized(WTF::move(window), attempts - 1, WTF::move(completionHandler));
+    });
+}
+
+void InspectorPlaywrightAgentClientMac::maximizeWindow(WebPageProxy& page, CompletionHandler<void(const String&)>&& completionHandler)
+{
+    if (headless_) {
+        completionHandler({ });
+        return;
+    }
+    RetainPtr window = page.platformWindow();
+    if (!window) {
+        completionHandler("Cannot find browser window for page"_s);
+        return;
+    }
+
+    if (![window isZoomed])
+        [window zoom:nil];
+    waitForWindowMaximized(WTF::move(window), 50, WTF::move(completionHandler));
 }
 
 void InspectorPlaywrightAgentClientMac::takePageScreenshot(WebPageProxy& page, WebCore::IntRect&& clipRect, bool, CompletionHandler<void(const String&, const String&)>&& completionHandler)

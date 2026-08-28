@@ -145,6 +145,22 @@ void InspectorPlaywrightAgentClientGlib::deleteBrowserContext(WTF::String& error
     m_idToContext.remove(sessionID);
 }
 
+void InspectorPlaywrightAgentClientGlib::maximizeWindow(WebPageProxy& page, CompletionHandler<void(const String&)>&& completionHandler)
+{
+#if PLATFORM(GTK)
+    auto* webView = WEBKIT_WEB_VIEW(page.viewWidget());
+    if (!webView)
+        return completionHandler("Cannot find browser view for page"_s);
+
+    webkitWebViewMaximizeWindow(webView, [completionHandler = WTF::move(completionHandler)]() mutable {
+        completionHandler({ });
+    });
+#else // PLATFORM(GTK)
+    UNUSED_PARAM(page);
+    completionHandler({ });
+#endif // PLATFORM(GTK)
+}
+
 void InspectorPlaywrightAgentClientGlib::takePageScreenshot(WebPageProxy& page, WebCore::IntRect&& clip, bool nominalResolution, CompletionHandler<void(const String&, const String&)>&& completionHandler)
 {
     page.callAfterNextPresentationUpdate([protectedPage = Ref{ page }, clip = WTF::move(clip), nominalResolution, completionHandler = WTF::move(completionHandler)]() mutable {

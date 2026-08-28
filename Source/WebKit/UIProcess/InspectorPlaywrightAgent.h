@@ -95,6 +95,7 @@ private:
     Inspector::Protocol::ErrorStringOr<String /* browserContextID */> createContext(const String& proxyServer, const String& proxyBypassList, std::optional<bool>&& enableStoragePartitioning) override;
     void deleteContext(const String& browserContextID, Ref<DeleteContextCallback>&& callback) override;
     Inspector::Protocol::ErrorStringOr<String /* pageProxyID */> createPage(const String& browserContextID) override;
+    void maximizeWindow(const String& pageProxyID, Ref<MaximizeWindowCallback>&&) override;
     void navigate(const String& url, const String& pageProxyID, const String& frameId, const String& referrer, Ref<NavigateCallback>&&) override;
     Inspector::Protocol::ErrorStringOr<void> grantFileReadAccess(const String& pageProxyID, Ref<JSON::Array>&& paths) override;
     void takePageScreenshot(const String& pageProxyID, int x, int y, int width, int height, std::optional<bool>&& omitDeviceScaleFactor, Ref<TakePageScreenshotCallback>&&) override;
