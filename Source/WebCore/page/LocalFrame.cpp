@@ -1236,10 +1236,10 @@ FloatSize LocalFrame::screenSize() const
 
 void LocalFrame::setOverrideScreenSize(FloatSize&& screenSize)
 {
-    if (m_overrideScreenSize && m_overrideScreenSize->size == screenSize)
+    if ((!m_overrideScreenSize && screenSize.isEmpty()) || (m_overrideScreenSize && m_overrideScreenSize->size == screenSize))
         return;
 
-    m_overrideScreenSize = makeUnique<OverrideScreenSize>(OverrideScreenSize { WTF::move(screenSize) });
+    m_overrideScreenSize = screenSize.isEmpty() ? nullptr : makeUnique<OverrideScreenSize>(OverrideScreenSize { WTF::move(screenSize) });
     if (RefPtr document = this->document())
         document->updateViewportArguments();
 }
