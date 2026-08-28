@@ -663,6 +663,22 @@ Inspector::Protocol::ErrorStringOr<String /* pageProxyID */> InspectorPlaywright
     return toPageProxyIDProtocolString(*page);
 }
 
+void InspectorPlaywrightAgent::maximizeWindow(const String& pageProxyID, Ref<MaximizeWindowCallback>&& callback)
+{
+    auto* pageProxyChannel = m_pageProxyChannels.get(pageProxyID);
+    if (!pageProxyChannel) {
+        callback->sendFailure("Unknown pageProxyID"_s);
+        return;
+    }
+
+    m_client->maximizeWindow(pageProxyChannel->page(), [callback = WTF::move(callback)](const String& error) {
+        if (error.isEmpty())
+            callback->sendSuccess();
+        else
+            callback->sendFailure(error);
+    });
+}
+
 WebFrameProxy* InspectorPlaywrightAgent::frameForID(const String& frameID, String& error)
 {
     std::optional<WebCore::FrameIdentifier> frameIdentifier = WebCore::InspectorPageAgent::parseFrameID(frameID);

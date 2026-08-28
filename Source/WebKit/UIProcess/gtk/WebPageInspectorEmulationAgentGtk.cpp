@@ -29,10 +29,13 @@
 #include "WebPageProxy.h"
 #include "GtkUtilities.h"
 #include "GtkVersioning.h"
+#include "WebKitWebViewPrivate.h"
 #include <WebCore/IntSize.h>
 #include <gtk/gtk.h>
 
 namespace WebKit {
+
+static const char* gPreserveWindowSizeID = "pw-preserve-window-size";
 
 static bool windowHasManyTabs(GtkWidget* widget) {
     for (GtkWidget* parent = gtk_widget_get_parent(widget); parent; parent = gtk_widget_get_parent(parent)) {
@@ -72,11 +75,10 @@ void WebPageInspectorEmulationAgent::platformSetSize(int width, int height, Func
         return;
     }
 
+    bool preserveWindowSize = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(viewWidget), gPreserveWindowSizeID));
+
     GtkAllocation windowAllocation;
     gtk_widget_get_allocation(window, &windowAllocation);
-
-    width += windowAllocation.width - viewAllocation.width;
-    height += windowAllocation.height - viewAllocation.height;
 
     if (auto* drawingArea = static_cast<DrawingAreaProxyCoordinatedGraphics*>(m_page.drawingArea())) {
         bool didNotHaveInitialAllocation = (!windowAllocation.width && !windowAllocation.height) ||
@@ -99,6 +101,15 @@ void WebPageInspectorEmulationAgent::platformSetSize(int width, int height, Func
     } else {
         callback("No backing store for window"_s);
     }
+    if (preserveWindowSize) {
+        gtk_widget_set_halign(viewWidget, GTK_ALIGN_START);
+        gtk_widget_set_valign(viewWidget, GTK_ALIGN_START);
+        gtk_widget_set_size_request(viewWidget, width, height);
+        return;
+    }
+
+    width += windowAllocation.width - viewAllocation.width;
+    height += windowAllocation.height - viewAllocation.height;
     // Depending on whether default size has been applied or not, we need to
     // do one of the calls, so we just do both.
     gtk_window_set_default_size(GTK_WINDOW(window), width, height);

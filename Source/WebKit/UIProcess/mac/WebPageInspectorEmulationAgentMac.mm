@@ -26,6 +26,7 @@
 #import "config.h"
 #import "WebPageInspectorEmulationAgent.h"
 
+#import "WKWebView.h"
 #import "WebPageProxy.h"
 
 namespace WebKit {
@@ -33,6 +34,13 @@ namespace WebKit {
 void WebPageInspectorEmulationAgent::platformSetSize(int width, int height, Function<void (const String& error)>&& callback)
 {
     NSWindow* window = m_page.platformWindow();
+    if ([window isZoomed]) {
+        RetainPtr webView = m_page.cocoaView();
+        [webView setAutoresizingMask:0];
+        [webView setFrameSize:NSMakeSize(width, height)];
+        callback(String());
+        return;
+    }
     NSRect windowRect = [window frame];
     NSRect viewRect = window.contentLayoutRect;
     windowRect.size.width += width - viewRect.size.width;

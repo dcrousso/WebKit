@@ -46,6 +46,8 @@
 
 namespace WebKit {
 
+static const char* gPreserveWindowSizeID = "pw-preserve-window-size";
+
 static WebCore::SoupNetworkProxySettings parseRawProxySettings(const String& proxyServer, const char* const* ignoreHosts)
 {
     WebCore::SoupNetworkProxySettings settings;
@@ -143,6 +145,23 @@ std::unique_ptr<BrowserContext> InspectorPlaywrightAgentClientGlib::createBrowse
 void InspectorPlaywrightAgentClientGlib::deleteBrowserContext(WTF::String& error, PAL::SessionID sessionID)
 {
     m_idToContext.remove(sessionID);
+}
+
+void InspectorPlaywrightAgentClientGlib::maximizeWindow(WebPageProxy& page, CompletionHandler<void(const String&)>&& completionHandler)
+{
+#if PLATFORM(GTK)
+    auto* webView = WEBKIT_WEB_VIEW(page.viewWidget());
+    if (!webView)
+        return completionHandler("Cannot find browser view for page"_s);
+
+    g_object_set_data(G_OBJECT(webView), gPreserveWindowSizeID, GINT_TO_POINTER(true));
+    webkitWebViewMaximizeWindow(webView, [completionHandler = WTF::move(completionHandler)]() mutable {
+        completionHandler({ });
+    });
+#else // PLATFORM(GTK)
+    UNUSED_PARAM(page);
+    completionHandler({ });
+#endif // PLATFORM(GTK)
 }
 
 void InspectorPlaywrightAgentClientGlib::takePageScreenshot(WebPageProxy& page, WebCore::IntRect&& clip, bool nominalResolution, CompletionHandler<void(const String&, const String&)>&& completionHandler)

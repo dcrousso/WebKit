@@ -48,6 +48,7 @@ public:
     void closeBrowser() override;
     std::unique_ptr<BrowserContext> createBrowserContext(WTF::String& error, const WTF::String& proxyServer, const WTF::String& proxyBypassList) override;
     void deleteBrowserContext(WTF::String& error, PAL::SessionID) override;
+    void maximizeWindow(WebPageProxy&, CompletionHandler<void(const String&)>&&) override;
 
 private:
     ConfigureDataStoreCallback m_configureDataStore;

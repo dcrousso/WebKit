@@ -84,6 +84,23 @@ void InspectorPlaywrightAgentClientWin::deleteBrowserContext(WTF::String& error,
 {
 }
 
+void InspectorPlaywrightAgentClientWin::maximizeWindow(WebPageProxy& page, CompletionHandler<void(const String&)>&& completionHandler)
+{
+    HWND view = reinterpret_cast<HWND>(page.viewWidget());
+    HWND root = ::GetAncestor(view, GA_ROOT);
+    if (!view || !root) {
+        completionHandler("Cannot find browser window for page"_s);
+        return;
+    }
+    if (!::IsWindowVisible(root)) {
+        completionHandler({ });
+        return;
+    }
+
+    ::ShowWindow(root, SW_MAXIMIZE);
+    completionHandler({ });
+}
+
 } // namespace WebKit
 
 #endif // ENABLE(REMOTE_INSPECTOR)

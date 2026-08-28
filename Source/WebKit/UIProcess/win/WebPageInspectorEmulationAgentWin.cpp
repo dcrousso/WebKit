@@ -45,6 +45,15 @@ void WebPageInspectorEmulationAgent::platformSetSize(int width, int height, Func
         return;
     }
 
+    if (IsZoomed(windowHwnd)) {
+        if (!SetWindowPos(viewHwnd, 0, 0, 0, width, height, SWP_NOCOPYBITS | SWP_NOSENDCHANGING | SWP_NOMOVE)) {
+            callback("Could not resize view"_s);
+            return;
+        }
+        callback(String());
+        return;
+    }
+
     width += windowRect.right - windowRect.left - viewRect.right + viewRect.left;
     height += windowRect.bottom - windowRect.top - viewRect.bottom + viewRect.top;
 
