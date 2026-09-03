@@ -48,6 +48,8 @@ void InspectorTarget::resume()
     ASSERT(m_isPaused);
     m_isPaused = false;
 
+    willResume();
+
     if (m_resumeCallback) {
         m_resumeCallback();
         m_resumeCallback = nullptr;
@@ -56,7 +58,6 @@ void InspectorTarget::resume()
 
 void InspectorTarget::setResumeCallback(WTF::Function<void()>&& callback)
 {
-    ASSERT(!m_resumeCallback);
     m_resumeCallback = WTF::move(callback);
 }
 

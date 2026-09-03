@@ -247,13 +247,13 @@ WK_EXPORT void WKPageDoAfterProcessingAllPendingMouseEvents(WKPageRef page, void
 #if !defined(__APPLE__)
 typedef void (*WKPageDoAfterProcessingAllPendingKeyEventsFunction)(void* functionContext);
 WK_EXPORT void WKPageDoAfterProcessingAllPendingKeyEvents(WKPageRef page, void* context, WKPageDoAfterProcessingAllPendingKeyEventsFunction function);
+#endif
 
 typedef void (*WKPageDoAfterProcessingAllPendingWheelEventsFunction)(void* functionContext);
 WK_EXPORT void WKPageDoAfterProcessingAllPendingWheelEvents(WKPageRef page, void* context, WKPageDoAfterProcessingAllPendingWheelEventsFunction function);
 
 typedef void (*WKPageDoAfterProcessingAllPendingTouchEventsFunction)(void* functionContext);
 WK_EXPORT void WKPageDoAfterProcessingAllPendingTouchEvents(WKPageRef page, void* context, WKPageDoAfterProcessingAllPendingTouchEventsFunction function);
-#endif
 
 typedef void (*WKPageCursorDidChangeCallbackForTesting)(WKStringRef cursorInfo, const void* clientInfo);
 WK_EXPORT void WKPageSetCursorDidChangeCallbackForTesting(WKPageRef page, WKPageCursorDidChangeCallbackForTesting callback, const void* clientInfo);

@@ -80,6 +80,20 @@ public:
     static Ref<NativeWebWheelEvent> create(HWND, UINT message, WPARAM, LPARAM, float deviceScaleFactor);
 #endif
 
+#if !USE(APPKIT)
+    static Ref<NativeWebWheelEvent> create(const WebWheelEvent& wheelEvent)
+    {
+        WebWheelEventInit init { wheelEvent.eventData(), wheelEvent.wheelData() };
+#if PLATFORM(GTK)
+        return adoptRef(*new NativeWebWheelEvent(WTF::move(init), nullptr));
+#elif PLATFORM(WIN)
+        return adoptRef(*new NativeWebWheelEvent(WTF::move(init), MSG { }));
+#else
+        return adoptRef(*new NativeWebWheelEvent(WTF::move(init)));
+#endif
+    }
+#endif
+
 #if USE(APPKIT)
     NSEvent* nativeEvent() const { return m_nativeEvent.get(); }
 #elif PLATFORM(GTK)

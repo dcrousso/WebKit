@@ -365,8 +365,9 @@ bool Geolocation::shouldBlockGeolocationRequests()
 
     bool isSecure = SecurityOrigin::isSecure(document->url()) || document->isSecureContext();
     bool isLocalOrigin = securityOrigin()->isLocal();
+    bool isPotentiallyTrustworthy = securityOrigin()->isPotentiallyTrustworthy();
     if (document->canAccessResource(ScriptExecutionContext::ResourceType::Geolocation) != ScriptExecutionContext::HasResourceAccess::No) {
-        if (isLocalOrigin || isSecure)
+        if (isLocalOrigin || isSecure  || isPotentiallyTrustworthy)
             return false;
     }
 

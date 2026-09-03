@@ -163,6 +163,12 @@ void FrameInspectorController::connectFrontend(Inspector::FrontendChannel& front
     UNUSED_PARAM(isAutomaticInspection);
     UNUSED_PARAM(immediatelyPause);
 
+    // Playwright begin
+    // Child frames copy parent's frontend connection.
+    if (!m_frame->isMainFrame() && m_frontendRouter->hasFrontends())
+        return;
+    // Playwright end
+
     if (auto* page = m_frame->page())
         page->settings().setDeveloperExtrasEnabled(true);
 
@@ -177,6 +183,19 @@ void FrameInspectorController::connectFrontend(Inspector::FrontendChannel& front
         m_injectedScriptManager->addClient();
         m_agents.didCreateFrontendAndBackend();
     }
+
+    // Playwright begin
+    // Auto attach/enable agents for subframes.
+    if (!m_frame->isMainFrame()) {
+        LocalFrame* localMainFrame = m_frame->page()->localMainFrame();
+        if (localMainFrame) {
+            Ref mainFrameController = localMainFrame->inspectorController();
+            auto* mainFrameConsoleAgent = mainFrameController->m_instrumentingAgents->webConsoleAgent();
+            if (mainFrameConsoleAgent && mainFrameConsoleAgent->enabled())
+                m_instrumentingAgents->webConsoleAgent()->enable();
+        }
+    }
+    // Playwright end
 }
 
 void FrameInspectorController::disconnectFrontend(Inspector::FrontendChannel& frontendChannel)

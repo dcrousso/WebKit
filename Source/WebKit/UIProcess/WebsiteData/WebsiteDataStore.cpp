@@ -317,15 +317,10 @@ SOAuthorizationCoordinator& WebsiteDataStore::soAuthorizationCoordinator(const W
 
 static Ref<NetworkProcessProxy> networkProcessForSession(PAL::SessionID sessionID)
 {
-#if ((PLATFORM(GTK) || PLATFORM(WPE)) && !ENABLE(2022_GLIB_API))
-    if (sessionID.isEphemeral()) {
-        // Reuse a previous persistent session network process for ephemeral sessions.
-        for (auto& dataStore : allDataStores().values()) {
-            if (dataStore->isPersistent())
-                return dataStore->networkProcess();
-        }
-    }
+// Playwright begin
+#if PLATFORM(GTK) || PLATFORM(WPE)
     return NetworkProcessProxy::create();
+// Playwright end
 #else
     UNUSED_PARAM(sessionID);
     return NetworkProcessProxy::ensureDefaultNetworkProcess();
@@ -2200,6 +2195,15 @@ void WebsiteDataStore::setCacheModelSynchronouslyForTesting(CacheModel cacheMode
         processPool->setCacheModelSynchronouslyForTesting(cacheModel);
 }
 
+// Playwright begin
+#if !USE(SOUP)
+void WebsiteDataStore::setIgnoreTLSErrors(bool ignoreTLSErrors)
+{
+    m_ignoreTLSErrors = ignoreTLSErrors;
+}
+#endif
+// Playwright begin
+
 Vector<WebsiteDataStoreParameters> WebsiteDataStore::parametersFromEachWebsiteDataStore()
 {
     return WTF::map(allDataStores(), [](auto& entry) {
@@ -2635,6 +2639,12 @@ void WebsiteDataStore::originDirectoryForTesting(WebCore::ClientOrigin&& origin,
 void WebsiteDataStore::lastPageLoadNetworkActivityCompletionCodeForTesting(WebCore::PageIdentifier pageID, CompletionHandler<void(std::optional<NetworkActivityTracker::CompletionCode>)>&& completionHandler)
 {
     protect(networkProcess())->lastPageLoadNetworkActivityCompletionCodeForTesting(m_sessionID, pageID, WTF::move(completionHandler));
+}
+
+void WebsiteDataStore::setDownloadForAutomation(std::optional<bool> allow, const String& downloadPath)
+{
+    m_allowDownloadForAutomation = allow;
+    m_downloadPathForAutomation = downloadPath;
 }
 
 #if ENABLE(APP_BOUND_DOMAINS)

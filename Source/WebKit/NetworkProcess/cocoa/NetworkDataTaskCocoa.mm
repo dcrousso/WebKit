@@ -326,6 +326,8 @@ NetworkDataTaskCocoa::NetworkDataTaskCocoa(NetworkSession& session, NetworkDataT
     StringView host = url.host();
     if (session.networkProcess().localhostAliasesForTesting().contains<StringViewHashTranslator>(host) && !host.endsWith("web-platform.test"_s))
         m_task.get()._hostOverride = adoptNS(nw_endpoint_create_host_with_numeric_port("localhost", url.port().value_or(0))).get();
+    else if (RetainPtr hostOverride = downcast<NetworkSessionCocoa>(session).loopbackProxyHostOverrideForURL(url))
+        m_task.get()._hostOverride = hostOverride.get();
 #endif
 
 #if ENABLE(OPT_IN_PARTITIONED_COOKIES) && defined(CFN_COOKIE_ACCEPTS_POLICY_PARTITION) && CFN_COOKIE_ACCEPTS_POLICY_PARTITION

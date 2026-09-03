@@ -323,6 +323,7 @@ public:
     COMPtr<IDataObject> dataObject() const { return m_dataObject; }
     WEBCORE_EXPORT void setExternalDataObject(IDataObject*);
     const DragDataMap& dragDataMap() const LIFETIME_BOUND { return m_dragDataMap; }
+    WEBCORE_EXPORT DragDataMap createDragDataMap();
     void writeURLToWritableDataObject(const URL&, const String&);
     COMPtr<WCDataObject> writableDataObject() const { return m_writableDataObject; }
     void writeImageToDataObject(Element&, const URL&); // FIXME: Layering violation.
@@ -396,6 +397,7 @@ private:
     DragDataMap m_dragDataMap;
     // Drag and drop pasteboards use their own data object, so only the copy and paste pasteboard is backed by the clipboard.
     bool m_forCopyAndPaste { false };
+    bool m_forDrag = false;
     int64_t m_changeCount { 0 };
 #endif
 };

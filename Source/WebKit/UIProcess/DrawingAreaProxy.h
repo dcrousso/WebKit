@@ -96,6 +96,7 @@ public:
 
     const WebCore::IntSize& size() const LIFETIME_BOUND { return m_size; }
     bool setSize(const WebCore::IntSize&, const WebCore::IntSize& scrollOffset = { });
+    void waitForSizeUpdate(Function<void ()>&&);
 
     virtual void minimumSizeForAutoLayoutDidChange() { }
     virtual void sizeToContentAutoSizeMaximumSizeDidChange() { }

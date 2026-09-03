@@ -35,8 +35,10 @@
 #include "SharedBuffer.h"
 #include "WebCoreInstanceHandle.h"
 #include <windows.h>
+#include <wtf/HashMap.h>
 #include <wtf/ListHashSet.h>
 #include <wtf/MainThread.h>
+#include <wtf/NeverDestroyed.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -56,26 +58,6 @@ static HWND clipboardOwner()
         return ::CreateWindow(windowClass.lpszClassName, L"PlatformPasteboardOwnerWindow", 0, 0, 0, 0, 0, HWND_MESSAGE, 0, windowClass.hInstance, 0);
     }();
     return owner;
-}
-
-PlatformPasteboard::PlatformPasteboard(const String&)
-{
-}
-
-void PlatformPasteboard::performAsDataOwner(DataOwnerType, NOESCAPE Function<void()>&& actions)
-{
-    actions();
-}
-
-int64_t PlatformPasteboard::changeCount() const
-{
-    return ::GetClipboardSequenceNumber();
-}
-
-void PlatformPasteboard::getTypes(Vector<String>& types) const
-{
-    if (::IsClipboardFormatAvailable(CF_UNICODETEXT) || ::IsClipboardFormatAvailable(CF_TEXT))
-        types.append(textPlainContentTypeAtom());
 }
 
 static String readClipboardString(UINT format)
@@ -98,35 +80,194 @@ static String readClipboardString(UINT format)
     return string;
 }
 
+// The caller is responsible for having opened the clipboard.
+static void setClipboardData(UINT format, HGLOBAL data)
+{
+    if (!data)
+        return;
+    if (!::SetClipboardData(format, data))
+        ::GlobalFree(data);
+}
+
+static String plainText(const PasteboardCustomData& data)
+{
+    String text;
+    data.forEachPlatformStringOrBuffer([&](auto& type, auto& value) {
+        if (type == textPlainContentTypeAtom() && std::holds_alternative<String>(value))
+            text = std::get<String>(value);
+    });
+    return text;
+}
+
+class PlatformPasteboardBackend {
+public:
+    virtual ~PlatformPasteboardBackend() = default;
+
+    virtual int64_t changeCount() const = 0;
+    virtual void getTypes(Vector<String>&) const = 0;
+    virtual std::optional<PasteboardCustomData> readCustomData() const = 0;
+    virtual String readString(size_t index, const String& type) const = 0;
+    virtual int64_t write(const PasteboardCustomData&) = 0;
+};
+
+class SystemPlatformPasteboard final : public PlatformPasteboardBackend {
+public:
+    int64_t changeCount() const final
+    {
+        return ::GetClipboardSequenceNumber();
+    }
+
+    void getTypes(Vector<String>& types) const final
+    {
+        if (::IsClipboardFormatAvailable(CF_UNICODETEXT) || ::IsClipboardFormatAvailable(CF_TEXT))
+            types.append(textPlainContentTypeAtom());
+    }
+
+    std::optional<PasteboardCustomData> readCustomData() const final
+    {
+        if (!::IsClipboardFormatAvailable(customDataClipboardFormat()) || !::OpenClipboard(clipboardOwner()))
+            return std::nullopt;
+
+        std::optional<PasteboardCustomData> customData;
+        if (HANDLE data = ::GetClipboardData(customDataClipboardFormat())) {
+            // Custom data is a serialized buffer rather than text, so it is read by length.
+            auto size = ::GlobalSize(data);
+            if (auto* bytes = static_cast<const uint8_t*>(::GlobalLock(data))) {
+                customData = PasteboardCustomData::fromPersistenceDecoder({ { bytes, size } });
+                ::GlobalUnlock(data);
+            }
+        }
+        ::CloseClipboard();
+        return customData;
+    }
+
+    String readString(size_t index, const String& type) const final
+    {
+        // The clipboard holds a single item.
+        if (index || !type.startsWith(textPlainContentTypeAtom()))
+            return { };
+
+        auto text = readClipboardString(CF_UNICODETEXT);
+        return text.isNull() ? readClipboardString(CF_TEXT) : text;
+    }
+
+    int64_t write(const PasteboardCustomData& data) final
+    {
+        auto text = plainText(data);
+        if (text.isNull() || !::OpenClipboard(clipboardOwner()))
+            return changeCount();
+
+        if (!::EmptyClipboard()) {
+            ::CloseClipboard();
+            return changeCount();
+        }
+
+        replaceNewlinesWithWindowsStyleNewlines(text);
+        setClipboardData(CF_UNICODETEXT, createGlobalData(text));
+
+        if (data.hasSameOriginCustomData() || !data.origin().isEmpty())
+            setClipboardData(customDataClipboardFormat(), createGlobalData(data.createSharedBuffer()->span()));
+
+        ::CloseClipboard();
+        return changeCount();
+    }
+};
+
+class IsolatedPlatformPasteboard final : public PlatformPasteboardBackend {
+public:
+    int64_t changeCount() const final
+    {
+        return m_changeCount;
+    }
+
+    void getTypes(Vector<String>& types) const final
+    {
+        if (m_pasteboard.contains(textPlainContentTypeAtom()))
+            types.append(textPlainContentTypeAtom());
+    }
+
+    std::optional<PasteboardCustomData> readCustomData() const final
+    {
+        return m_customData;
+    }
+
+    String readString(size_t index, const String& type) const final
+    {
+        if (index || !type.startsWith(textPlainContentTypeAtom()))
+            return { };
+        return m_pasteboard.get(textPlainContentTypeAtom());
+    }
+
+    int64_t write(const PasteboardCustomData& data) final
+    {
+        auto text = plainText(data);
+        if (text.isNull())
+            return changeCount();
+
+        m_pasteboard.clear();
+        m_pasteboard.set(textPlainContentTypeAtom(), text);
+        m_customData = data.hasSameOriginCustomData() || !data.origin().isEmpty() ? std::optional { data } : std::nullopt;
+        return ++m_changeCount;
+    }
+
+private:
+    // This is intentionally process wide: one browser shares one clipboard across all of its contexts and pages.
+    UncheckedKeyHashMap<String, String> m_pasteboard;
+    std::optional<PasteboardCustomData> m_customData;
+    int64_t m_changeCount { 0 };
+};
+
+static PlatformPasteboardBackend& systemPlatformPasteboard()
+{
+    static NeverDestroyed<SystemPlatformPasteboard> pasteboard;
+    return pasteboard.get();
+}
+
+static PlatformPasteboardBackend& isolatedPlatformPasteboard()
+{
+    static NeverDestroyed<IsolatedPlatformPasteboard> pasteboard;
+    return pasteboard.get();
+}
+
+static PlatformPasteboardBackend*& selectedPlatformPasteboard()
+{
+    static PlatformPasteboardBackend* pasteboard = &systemPlatformPasteboard();
+    return pasteboard;
+}
+
+void PlatformPasteboard::setIsolated(bool isolated)
+{
+    selectedPlatformPasteboard() = isolated ? &isolatedPlatformPasteboard() : &systemPlatformPasteboard();
+}
+
+PlatformPasteboard::PlatformPasteboard(const String&)
+    : m_backend(selectedPlatformPasteboard())
+{
+}
+
+void PlatformPasteboard::performAsDataOwner(DataOwnerType, NOESCAPE Function<void()>&& actions)
+{
+    actions();
+}
+
+int64_t PlatformPasteboard::changeCount() const
+{
+    return m_backend->changeCount();
+}
+
+void PlatformPasteboard::getTypes(Vector<String>& types) const
+{
+    m_backend->getTypes(types);
+}
+
 std::optional<PasteboardCustomData> PlatformPasteboard::readCustomData() const
 {
-    if (!::IsClipboardFormatAvailable(customDataClipboardFormat()) || !::OpenClipboard(clipboardOwner()))
-        return std::nullopt;
-
-    std::optional<PasteboardCustomData> customData;
-    if (HANDLE data = ::GetClipboardData(customDataClipboardFormat())) {
-        // Custom data is a serialized buffer rather than text, so it is read by length.
-        auto size = ::GlobalSize(data);
-        if (auto* bytes = static_cast<const uint8_t*>(::GlobalLock(data))) {
-            customData = PasteboardCustomData::fromPersistenceDecoder({ { bytes, size } });
-            ::GlobalUnlock(data);
-        }
-    }
-    ::CloseClipboard();
-    return customData;
+    return m_backend->readCustomData();
 }
 
 String PlatformPasteboard::readString(size_t index, const String& type) const
 {
-    // The clipboard holds a single item.
-    if (index)
-        return { };
-
-    if (!type.startsWith(textPlainContentTypeAtom()))
-        return { };
-
-    auto text = readClipboardString(CF_UNICODETEXT);
-    return text.isNull() ? readClipboardString(CF_TEXT) : text;
+    return m_backend->readString(index, type);
 }
 
 Vector<String> PlatformPasteboard::typesSafeForDOMToReadAndWrite(const String& origin) const
@@ -138,8 +279,10 @@ Vector<String> PlatformPasteboard::typesSafeForDOMToReadAndWrite(const String& o
             domTypes.add(type);
     }
 
-    if (::IsClipboardFormatAvailable(CF_UNICODETEXT) || ::IsClipboardFormatAvailable(CF_TEXT))
-        domTypes.add(textPlainContentTypeAtom());
+    Vector<String> types;
+    getTypes(types);
+    for (auto& type : types)
+        domTypes.add(type);
 
     return copyToVector(domTypes);
 }
@@ -175,44 +318,9 @@ int PlatformPasteboard::count() const
     return types.isEmpty() ? 0 : 1;
 }
 
-// The caller is responsible for having opened the clipboard.
-static void setClipboardData(UINT format, HGLOBAL data)
-{
-    if (!data)
-        return;
-    if (!::SetClipboardData(format, data))
-        ::GlobalFree(data);
-}
-
 int64_t PlatformPasteboard::write(const PasteboardCustomData& data, PasteboardDataLifetime)
 {
-    String text;
-    data.forEachPlatformStringOrBuffer([&](auto& type, auto& value) {
-        if (type != textPlainContentTypeAtom() || !std::holds_alternative<String>(value))
-            return;
-        text = std::get<String>(value);
-    });
-    if (text.isNull())
-        return changeCount();
-
-    // A failed write leaves the clipboard, and so its change count, alone.
-    if (!::OpenClipboard(clipboardOwner()))
-        return changeCount();
-
-    if (!::EmptyClipboard()) {
-        ::CloseClipboard();
-        return changeCount();
-    }
-
-    replaceNewlinesWithWindowsStyleNewlines(text);
-    setClipboardData(CF_UNICODETEXT, createGlobalData(text));
-
-    if (data.hasSameOriginCustomData() || !data.origin().isEmpty())
-        setClipboardData(customDataClipboardFormat(), createGlobalData(data.createSharedBuffer()->span()));
-
-    ::CloseClipboard();
-
-    return changeCount();
+    return m_backend->write(data);
 }
 
 int64_t PlatformPasteboard::write(const Vector<PasteboardCustomData>& data, PasteboardDataLifetime pasteboardDataLifetime)

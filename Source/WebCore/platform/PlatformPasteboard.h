@@ -51,6 +51,9 @@ namespace WebCore {
 class Color;
 class SharedBuffer;
 class PasteboardCustomData;
+#if PLATFORM(WIN)
+class PlatformPasteboardBackend;
+#endif
 class SelectionData;
 struct PasteboardBuffer;
 struct PasteboardImage;
@@ -64,6 +67,9 @@ enum class PasteboardDataLifetime : bool { Persistent, Ephemeral };
 class PlatformPasteboard {
 public:
     WEBCORE_EXPORT explicit PlatformPasteboard(const String& pasteboardName);
+#if PLATFORM(MAC) || PLATFORM(WIN)
+    WEBCORE_EXPORT static void setIsolated(bool);
+#endif
 #if PLATFORM(IOS_FAMILY) || USE(LIBWPE)
     WEBCORE_EXPORT PlatformPasteboard();
     WEBCORE_EXPORT void updateSupportedTypeIdentifiers(const Vector<String>& types);
@@ -133,6 +139,9 @@ private:
 #if USE(LIBWPE)
     struct wpe_pasteboard* m_pasteboard;
     int64_t m_changeCount { 0 };
+#endif
+#if PLATFORM(WIN)
+    PlatformPasteboardBackend* m_backend { nullptr };
 #endif
 };
 

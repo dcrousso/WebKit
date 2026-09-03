@@ -93,8 +93,8 @@ public:
     // is initialized by the decoder and not in the constructor.
     DragData() = default;
 #if PLATFORM(WIN)
-    WEBCORE_EXPORT DragData(const DragDataMap&, const IntPoint& clientPosition, const IntPoint& globalPosition, OptionSet<DragOperation> sourceOperationMask, OptionSet<DragApplicationFlags> = { }, std::optional<PageIdentifier> pageID = std::nullopt);
-    const DragDataMap& dragDataMap();
+    WEBCORE_EXPORT DragData(const DragDataMap&, const IntPoint& clientPosition, const IntPoint& globalPosition, OptionSet<DragOperation> sourceOperationMask, OptionSet<DragApplicationFlags> = { }, OptionSet<DragDestinationAction> = anyDragDestinationAction(), std::optional<PageIdentifier> pageID = std::nullopt);
+    WEBCORE_EXPORT const DragDataMap& dragDataMap() const;
     void getDragFileDescriptorData(int& size, String& pathname);
     void getDragFileContentData(int size, void* dataBlob);
 #endif
@@ -147,7 +147,7 @@ private:
     String m_pasteboardName;
 #endif
 #if PLATFORM(WIN)
-    DragDataMap m_dragDataMap;
+    mutable DragDataMap m_dragDataMap;
 #endif
     bool m_disallowFileAccess { false };
 };

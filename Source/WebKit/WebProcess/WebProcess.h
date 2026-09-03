@@ -107,6 +107,7 @@ namespace WebCore {
 class CPUMonitor;
 class Frame;
 class PageGroup;
+class ResourceRequest;
 class SecurityOriginData;
 class Site;
 class UserGestureToken;
@@ -253,6 +254,8 @@ public:
     WebCore::ThirdPartyCookieBlockingMode thirdPartyCookieBlockingMode() const { return m_thirdPartyCookieBlockingMode; }
 
     bool fullKeyboardAccessEnabled() const { return m_fullKeyboardAccessEnabled; }
+
+    void applyOverrideLanguagesToRequest(WebCore::ResourceRequest&) const;
 
     void contentWorldDestroyed(ContentWorldIdentifier);
 
@@ -599,7 +602,7 @@ private:
     void clearResourceLoadStatistics();
     void flushResourceLoadStatistics();
     void seedResourceLoadStatisticsForTesting(const WebCore::RegistrableDomain& firstPartyDomain, const WebCore::RegistrableDomain& thirdPartyDomain, bool shouldScheduleNotification, CompletionHandler<void()>&&);
-    void userPreferredLanguagesChanged(const Vector<String>&) const;
+    void userPreferredLanguagesChanged(const Vector<String>&);
     void NODELETE fullKeyboardAccessModeChanged(bool fullKeyboardAccessEnabled);
 #if ENABLE(OPT_IN_PARTITIONED_COOKIES)
     void setOptInCookiePartitioningEnabled(bool);
@@ -797,6 +800,7 @@ private:
     CacheModel m_cacheModel { CacheModel::DocumentViewer };
 
     bool m_fullKeyboardAccessEnabled { false };
+    Vector<String> m_overrideLanguages;
 
 #if HAVE(MOUSE_DEVICE_OBSERVATION)
     bool m_hasMouseDevice { false };

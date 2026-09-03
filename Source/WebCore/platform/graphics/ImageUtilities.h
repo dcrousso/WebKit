@@ -84,7 +84,7 @@ WEBCORE_EXPORT void createBitmapsFromImageData(std::span<const uint8_t> data, st
 WEBCORE_EXPORT RefPtr<SharedBuffer> createIconDataFromBitmaps(Vector<Ref<ShareableBitmap>>&&);
 WEBCORE_EXPORT void decodeImageWithSize(std::span<const uint8_t> data, std::optional<FloatSize>, CompletionHandler<void(RefPtr<ShareableBitmap>&&)>&&);
 
-Vector<uint8_t> encodeData(CGImageRef, const String& mimeType, std::optional<double> quality = std::nullopt);
+WEBCORE_EXPORT Vector<uint8_t> encodeData(CGImageRef, const String& mimeType, std::optional<double> quality = std::nullopt);
 WEBCORE_EXPORT String encodeDataURL(CGImageRef, const String& mimeType, std::optional<double> quality = std::nullopt);
 WEBCORE_EXPORT uint8_t NODELETE verifyImageBufferIsBigEnough(std::span<const uint8_t> buffer);
 RetainPtr<CFStringRef> utiFromImageBufferMIMEType(const String& mimeType);

@@ -1069,8 +1069,10 @@ bool RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
         return false;
     }
 
+#if !PLATFORM(GTK)  // Temporal workaround until https://bugs.webkit.org/show_bug.cgi?id=307077 is fixed
     if (!m_compositing && (m_forceCompositingMode || (isRootFrameCompositor() && page().pageOverlayController().overlayCount())))
         enableCompositingMode(true);
+#endif
 
     bool isPageScroll = !updateRootArg || updateRootArg == &rootRenderLayer();
     CheckedPtr updateRoot = &rootRenderLayer();

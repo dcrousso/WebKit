@@ -51,6 +51,7 @@
 #include <WebCore/NodeIdentifier.h>
 #include <WebCore/NowPlayingMetadataObserver.h>
 #include <WebCore/OwnerPermissionsPolicyData.h>
+#include <WebCore/Page.h>
 #include <WebCore/PageIdentifier.h>
 #include <WebCore/PageOverlay.h>
 #include <WebCore/PlatformLayerIdentifier.h>
@@ -1474,6 +1475,9 @@ public:
 #if ENABLE(MODEL_PROCESS)
     void modelDragEnded(WebCore::NodeIdentifier);
 #endif
+#if PLATFORM(MAC)
+    void setDragPasteboardName(const String& pasteboardName) { m_page->setDragPasteboardName(pasteboardName); }
+#endif
 #endif
 
 #if ENABLE(MODEL_PROCESS)
@@ -1576,8 +1580,11 @@ public:
     void gestureEvent(WebCore::FrameIdentifier, const WebGestureEvent&, CompletionHandler<void(std::optional<WebEventType>, bool, std::optional<WebCore::RemoteUserInputEventData>)>&&);
 #endif
 
-#if PLATFORM(IOS_FAMILY)
+#if ENABLE(ORIENTATION_EVENTS)
     void setDeviceOrientation(WebCore::IntDegrees);
+#endif
+
+#if PLATFORM(IOS_FAMILY)
     void dynamicViewportSizeUpdate(const DynamicViewportSizeUpdate&);
     bool scaleWasSetByUIProcess() const { return m_scaleWasSetByUIProcess; }
     void willStartUserTriggeredZooming();
@@ -1741,6 +1748,8 @@ public:
     void connectInspector(Inspector::FrontendChannel::ConnectionType);
     void disconnectInspector();
     void sendMessageToTargetBackend(const String& message);
+    void resumeInspectorIfPausedInNewWindow();
+    void didAddWebPageToWebProcess();
 
     void insertNewlineInQuotedContent();
 
@@ -2191,6 +2200,7 @@ public:
     void showContextMenuFromFrame(const FrameInfoData&, const ContextMenuContextData&, const UserData&);
 #endif
     void loadRequest(LoadParameters&&);
+    void loadRequestInFrameForInspector(LoadParameters&&, WebCore::FrameIdentifier);
 
     void setObscuredContentInsets(const WebCore::FloatBoxExtent&);
 
@@ -2418,6 +2428,7 @@ private:
     void updatePotentialTapSecurityOrigin(const WebTouchEvent&, bool wasHandled);
 #elif ENABLE(TOUCH_EVENTS)
     void touchEvent(Ref<WebTouchEvent>&&, CompletionHandler<void(std::optional<WebEventType>, bool)>&&);
+    void fakeTouchTap(const WebCore::IntPoint& position, uint8_t modifiers, CompletionHandler<void()>&& completionHandler);
 #endif
 
     void cancelPointer(WebCore::PointerID, const WebCore::IntPoint&);
@@ -3289,6 +3300,7 @@ private:
     bool m_isAppNapEnabled { true };
 
     Markable<WebCore::NavigationIdentifier> m_pendingNavigationID;
+    Markable<WebCore::NavigationIdentifier> m_pendingFrameNavigationID;
 
     bool m_shouldConsiderEnhancedSecurityForInsecureResponseForCurrentNavigation { false };
     bool m_mainFrameProgressCompleted { false };

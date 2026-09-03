@@ -43,10 +43,12 @@
 #include <wtf/Seconds.h>
 #include <wtf/TZoneMalloc.h>
 #include <wtf/WeakRef.h>
+#include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
 
 namespace Inspector {
 enum class ResourceType : uint8_t;
+class InjectedScriptManager;
 }
 
 namespace WebCore {
@@ -54,6 +56,7 @@ namespace WebCore {
 class DOMWrapperWorld;
 class DocumentLoader;
 class Frame;
+class HTMLInputElement;
 class InspectorOverlay;
 class LocalFrame;
 class Page;
@@ -69,6 +72,9 @@ public:
     InspectorPageAgent(PageAgentContext&, InspectorBackendClient*, InspectorOverlay&);
     ~InspectorPageAgent();
 
+    WEBCORE_EXPORT static String serializeFrameID(FrameIdentifier frameID);
+    WEBCORE_EXPORT static std::optional<FrameIdentifier> parseFrameID(String frameID);
+
     // InspectorAgentBase
     void didCreateFrontendAndBackend();
     void willDestroyFrontendAndBackend(Inspector::DisconnectReason);
@@ -77,7 +83,10 @@ public:
     Inspector::Protocol::ErrorStringOr<void> enable();
     Inspector::Protocol::ErrorStringOr<void> disable();
     Inspector::Protocol::ErrorStringOr<void> reload(std::optional<bool>&& ignoreCache, std::optional<bool>&& revalidateAllResources);
+    Inspector::Protocol::ErrorStringOr<void> goBack();
+    Inspector::Protocol::ErrorStringOr<void> goForward();
     Inspector::Protocol::ErrorStringOr<void> overrideUserAgent(const String&);
+    Inspector::Protocol::ErrorStringOr<void> overridePlatform(const String&);
     Inspector::Protocol::ErrorStringOr<void> overrideSetting(Inspector::Protocol::Page::Setting, std::optional<bool>&& value);
     Inspector::Protocol::ErrorStringOr<void> overrideUserPreference(Inspector::Protocol::Page::UserPreferenceName, std::optional<Inspector::Protocol::Page::UserPreferenceValue>&&);
     Inspector::Protocol::ErrorStringOr<Ref<JSON::ArrayOf<Inspector::Protocol::Page::Cookie>>> getCookies();
@@ -93,41 +102,60 @@ public:
 #endif
     Inspector::Protocol::ErrorStringOr<void> setShowPaintRects(bool);
     Inspector::Protocol::ErrorStringOr<void> setEmulatedMedia(const String&);
+    Inspector::Protocol::ErrorStringOr<void> setForcedColors(std::optional<Inspector::Protocol::Page::ForcedColors>&&);
+    Inspector::Protocol::ErrorStringOr<void> setTimeZone(const String&);
+    Inspector::Protocol::ErrorStringOr<void> setTouchEmulationEnabled(bool);
     Inspector::Protocol::ErrorStringOr<String> snapshotNode(Inspector::Protocol::DOM::NodeId);
-    Inspector::Protocol::ErrorStringOr<String> snapshotRect(int x, int y, int width, int height, Inspector::Protocol::Page::CoordinateSystem);
+    Inspector::Protocol::ErrorStringOr<String> snapshotRect(int x, int y, int width, int height, Inspector::Protocol::Page::CoordinateSystem, std::optional<bool>&& omitDeviceScaleFactor, std::optional<Inspector::Protocol::Page::ImageFormat>&& format, std::optional<int>&& quality);
 #if ENABLE(WEB_ARCHIVE) && USE(CF)
     Inspector::Protocol::ErrorStringOr<String> archive();
 #endif
-#if !PLATFORM(COCOA)
     Inspector::Protocol::ErrorStringOr<void> setScreenSizeOverride(std::optional<int>&& width, std::optional<int>&& height);
-#endif
+
+    Inspector::Protocol::ErrorStringOr<void> insertText(const String& text);
+    Inspector::Protocol::ErrorStringOr<void> setInterceptFileChooserDialog(bool enabled);
+    Inspector::Protocol::ErrorStringOr<void> setDefaultBackgroundColorOverride(RefPtr<JSON::Object>&&);
+    Inspector::Protocol::ErrorStringOr<void> createUserWorld(const String&);
+    Inspector::Protocol::ErrorStringOr<void> setBypassCSP(bool);
+    Inspector::Protocol::ErrorStringOr<void> crash();
+    Inspector::Protocol::ErrorStringOr<void> updateScrollingState();
 
     // InspectorInstrumentation
-    void domContentEventFired();
-    void loadEventFired();
+    void domContentEventFired(LocalFrame&);
+    void loadEventFired(LocalFrame&);
     void frameNavigated(LocalFrame&);
     void frameDetached(LocalFrame&);
     void loaderDetachedFromFrame(DocumentLoader&);
     void accessibilitySettingsDidChange();
     void defaultUserPreferencesDidChange();
+    void didNavigateWithinPage(LocalFrame&);
 #if ENABLE(DARK_MODE_CSS)
     void defaultAppearanceDidChange();
 #endif
     void applyUserAgentOverride(String&);
+    void applyPlatformOverride(String&);
     void applyEmulatedMedia(AtomString&);
     void didClearWindowObjectInWorld(LocalFrame&, DOMWrapperWorld&);
     void didPaint(RenderObject&, const LayoutRect&);
     void didLayout();
     void didScroll();
     void didRecalculateStyle();
+    void runOpenPanel(HTMLInputElement* element, bool* intercept);
+    void frameAttached(LocalFrame&);
+    bool shouldBypassCSP();
+    void willCheckNavigationPolicy(LocalFrame&);
+    void didCheckNavigationPolicy(LocalFrame&, bool cancel);
 
     Frame* frameForId(const Inspector::Protocol::Network::FrameId&);
     WEBCORE_EXPORT String frameId(Frame*);
     String loaderId(DocumentLoader*);
     LocalFrame* assertFrame(Inspector::Protocol::ErrorString&, const Inspector::Protocol::Network::FrameId&);
+    void setIgnoreDidClearWindowObject(bool ignore) { m_ignoreDidClearWindowObject = ignore; }
+    bool ignoreDidClearWindowObject() const { return m_ignoreDidClearWindowObject; }
 
 private:
     double timestamp();
+    void ensureUserWorldsExistInAllFrames(const Vector<DOMWrapperWorld*>&);
 
     InspectorOverlay& NODELETE overlay() const;
 
@@ -142,14 +170,20 @@ private:
     const Ref<Inspector::PageBackendDispatcher> m_backendDispatcher;
 
     WeakRef<Page> m_inspectedPage;
+    Inspector::InjectedScriptManager& m_injectedScriptManager;
     InspectorBackendClient* m_client { nullptr };
     WeakRef<InspectorOverlay> m_overlay;
 
     String m_userAgentOverride;
+    String m_platformOverride;
     AtomString m_emulatedMedia;
     String m_bootstrapScript;
     bool m_isFirstLayoutAfterOnLoad { false };
     bool m_showPaintRects { false };
+
+    bool m_interceptFileChooserDialog { false };
+    bool m_bypassCSP { false };
+    bool m_ignoreDidClearWindowObject { false };
 };
 
 } // namespace WebCore

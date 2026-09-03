@@ -35,6 +35,7 @@
 #include "FrameLoader.h"
 #include "HistoryController.h"
 #include "HistoryItem.h"
+#include "InspectorInstrumentation.h"
 #include "LocalFrame.h"
 #include "LocalFrameInlines.h"
 #include "LocalFrameLoaderClient.h"
@@ -97,7 +98,7 @@ ExceptionOr<History::ScrollRestoration> History::scrollRestoration() const
     RefPtr historyItem = frame->loader().history().currentItem();
     if (!historyItem)
         return ScrollRestoration::Auto;
-    
+
     return historyItem->shouldRestoreScrollPosition() ? ScrollRestoration::Auto : ScrollRestoration::Manual;
 }
 
@@ -315,6 +316,8 @@ ExceptionOr<void> History::stateObjectAdded(RefPtr<SerializedScriptValue>&& data
     }
 
     frame->loader().updateURLAndHistory(fullURL, WTF::move(data), historyBehavior);
+    InspectorInstrumentation::didNavigateWithinPage(*frame);
+
     return { };
 }
 

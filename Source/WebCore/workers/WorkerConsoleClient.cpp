@@ -267,4 +267,6 @@ void WorkerConsoleClient::screenshot(JSC::JSGlobalObject* lexicalGlobalObject, R
     InspectorInstrumentation::addMessageToConsole(protect(globalScope()), makeUnique<Inspector::ConsoleMessage>(MessageSource::ConsoleAPI, MessageType::Image, MessageLevel::Log, dataURL, ScriptArguments::create(lexicalGlobalObject, WTF::move(adjustedArguments)), lexicalGlobalObject, /* requestIdentifier */ 0, timestamp));
 }
 
+void WorkerConsoleClient::bindingCalled(JSC::JSGlobalObject*, const String&, const String&) { }
+
 } // namespace WebCore

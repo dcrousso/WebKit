@@ -201,6 +201,13 @@ void ProcessLauncher::launchProcess()
         nargs++;
     }
 #endif
+// Playwright begin
+    bool enableSharedArrayBuffer = false;
+    if (m_launchOptions.processType == ProcessLauncher::ProcessType::Web && m_client && m_client->shouldEnableSharedArrayBuffer()) {
+        enableSharedArrayBuffer = true;
+        nargs++;
+    }
+// Playwright end
 
     Vector<char*> argv(nargs);
     unsigned i = 0;
@@ -216,6 +223,10 @@ void ProcessLauncher::launchProcess()
     if (configureJSCForTesting)
         argv[i++] = const_cast<char*>("--configure-jsc-for-testing");
 #endif
+// Playwright begin
+    if (enableSharedArrayBuffer)
+        argv[i++] = const_cast<char*>("--enable-shared-array-buffer");
+// Playwright end
     argv[i++] = nullptr;
 
     // Warning: we want GIO to be able to spawn with posix_spawn() rather than fork()/exec(), in

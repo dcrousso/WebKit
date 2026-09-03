@@ -221,6 +221,7 @@ if (USE_CAIRO)
         platform/graphics/win/cairo/MediaPlayerPrivateMediaFoundationCairo.cpp
 
         platform/win/cairo/DragImageWinCairo.cpp
+        platform/win/DragImageWin.cpp
     )
 elseif (USE_SKIA)
     list(APPEND WebCore_SOURCES

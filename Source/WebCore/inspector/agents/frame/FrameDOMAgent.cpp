@@ -1488,7 +1488,7 @@ private:
 
 } // namespace
 
-RefPtr<Inspector::Protocol::Runtime::RemoteObject> FrameDOMAgent::resolveNodeInternal(Node* node, const String& objectGroup)
+RefPtr<Inspector::Protocol::Runtime::RemoteObject> FrameDOMAgent::resolveNodeInternal(Node* node, const String& objectGroup, std::optional<int>&& contextId)
 {
     if (!node)
         return nullptr;
@@ -1500,12 +1500,17 @@ RefPtr<Inspector::Protocol::Runtime::RemoteObject> FrameDOMAgent::resolveNodeInt
     if (!frame)
         return nullptr;
 
-    auto& globalObject = mainWorldGlobalObject(*frame);
-    auto injectedScript = m_injectedScriptManager->injectedScriptFor(&globalObject);
+    InjectedScript injectedScript;
+    if (contextId)
+        injectedScript = m_injectedScriptManager->injectedScriptForId(*contextId);
+    else {
+        auto& globalObject = mainWorldGlobalObject(*frame);
+        injectedScript = m_injectedScriptManager->injectedScriptFor(&globalObject);
+    }
     if (injectedScript.hasNoValue())
         return nullptr;
 
-    return injectedScript.wrapObject(InspectorDOMAgent::nodeAsScriptValue(globalObject, node), objectGroup);
+    return injectedScript.wrapObject(InspectorDOMAgent::nodeAsScriptValue(*injectedScript.globalObject(), node), objectGroup);
 }
 
 RefPtr<Node> FrameDOMAgent::nodeForObjectId(const Inspector::Protocol::Runtime::RemoteObjectId& objectId)
@@ -1517,15 +1522,21 @@ RefPtr<Node> FrameDOMAgent::nodeForObjectId(const Inspector::Protocol::Runtime::
     return InspectorDOMAgent::scriptValueAsNode(injectedScript.findObjectById(objectId));
 }
 
-Inspector::CommandResult<Ref<Inspector::Protocol::Runtime::RemoteObject>> FrameDOMAgent::resolveNode(int nodeId, const String& objectGroup)
+Inspector::CommandResult<Ref<Inspector::Protocol::Runtime::RemoteObject>> FrameDOMAgent::resolveNode(std::optional<int>&& nodeId, const String& objectId, const String&, std::optional<int>&& executionContextId, const String& objectGroup)
 {
     Inspector::Protocol::ErrorString errorString;
 
-    RefPtr node = assertNode(errorString, nodeId);
+    RefPtr<Node> node;
+    if (!objectId.isEmpty())
+        node = nodeForObjectId(objectId);
+    else if (nodeId)
+        node = assertNode(errorString, *nodeId);
+    else
+        return makeUnexpected("Either nodeId or objectId must be specified"_s);
     if (!node)
-        return makeUnexpected(errorString);
+        return makeUnexpected(errorString.isEmpty() ? "Missing node for given objectId"_s : errorString);
 
-    auto object = resolveNodeInternal(node.get(), objectGroup);
+    auto object = resolveNodeInternal(node.get(), objectGroup, WTF::move(executionContextId));
     if (!object)
         return makeUnexpected("Missing injected script for given nodeId"_s);
 

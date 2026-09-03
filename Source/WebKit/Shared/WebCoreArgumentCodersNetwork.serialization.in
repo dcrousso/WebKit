@@ -214,6 +214,7 @@ class WebCore::ResourceResponse : WebCore::ResourceResponseBase {
     String httpStatusText;
     String httpVersion;
     WebCore::HTTPHeaderMap httpHeaderFields;
+    WebCore::HTTPHeaderMap httpRequestHeaderFields;
     std::optional<WebCore::NetworkLoadMetrics> networkLoadMetrics;
     WebCore::ResourceResponseBase::Source source;
     WebCore::ResourceResponseBase::Type type;

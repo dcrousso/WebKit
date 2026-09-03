@@ -1625,6 +1625,39 @@ template<typename T, typename U> constexpr auto forward_like(U&& value) -> detai
 template<typename T, typename U> constexpr auto forward_like_preserving_const(U&& value) -> detail::forward_like_preserving_const_impl<T, U> { return static_cast<detail::forward_like_preserving_const_impl<T, U>>(value); }
 } // namespace WTF
 
+#if defined(__GLIBCXX__) && !defined(__cpp_lib_ranges_zip)
+#include <wtf/ZippedRange.h>
+
+namespace std::ranges {
+
+struct _Zip {
+    template<typename... _Ts>
+    requires (sizeof...(_Ts) <= 2)
+    constexpr auto
+    operator() [[nodiscard]] (_Ts&&... __ts) const {
+        if constexpr (!sizeof...(_Ts)) {
+            return views::empty<tuple<>>;
+        } else if constexpr (sizeof...(_Ts) == 1) {
+            return [](auto&& arg1, auto&&...) {
+                return std::forward<decltype(arg1)>(arg1);
+            }(std::forward<_Ts>(__ts)...);
+        } else {
+            return [](auto&& arg1, auto&& arg2, auto&&...) {
+                return zippedRange(std::forward<decltype(arg1)>(arg1), std::forward<decltype(arg2)>(arg2));
+            }(std::forward<_Ts>(__ts)...);
+        }
+    }
+};
+
+namespace views {
+    inline constexpr _Zip zip;
+}
+
+using WTF::zippedRange;
+
+} // namespace std::ranges
+#endif // defined(__GLIBCXX__) && !defined(__cpp_lib_ranges_zip)
+
 using WTF::GB;
 using WTF::KB;
 using WTF::MB;

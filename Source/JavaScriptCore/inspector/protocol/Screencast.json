@@ -1,0 +1,47 @@
+{
+    "domain": "Screencast",
+    "availability": ["web"],
+    "types": [
+        {
+            "id": "ScreencastId",
+            "type": "string",
+            "description": "Unique identifier of the screencast."
+        }
+    ],
+    "commands": [
+        {
+            "name": "startScreencast",
+            "description": "Starts screencast.",
+            "parameters": [
+                { "name": "width", "type": "integer" },
+                { "name": "height", "type": "integer" },
+                { "name": "toolbarHeight", "type": "integer" },
+                { "name": "quality", "type": "integer" }
+            ],
+            "returns": [
+                { "name": "generation", "type": "integer", "description": "Screencast session generation." }
+            ]
+        },
+        {
+            "name": "stopScreencast",
+            "description": "Stops screencast."
+        },
+        {
+            "name": "screencastFrameAck",
+            "parameters": [
+                { "name": "generation", "type": "integer", "description": "Screencast session generation" }
+            ]
+        }
+    ],
+    "events": [
+        {
+            "name": "screencastFrame",
+            "parameters": [
+                { "name": "data", "type": "string", "description": "Base64 data" },
+                { "name": "timestamp", "type": "number" },
+                { "name": "deviceWidth", "type": "integer" },
+                { "name": "deviceHeight", "type": "integer" }
+            ]
+        }
+    ]
+}

@@ -92,6 +92,29 @@ public:
     static Ref<NativeWebMouseEvent> create(HWND, UINT message, WPARAM, LPARAM, bool, float deviceScaleFactor);
 #endif
 
+#if PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(WIN)
+    static Ref<NativeWebMouseEvent> create(WebEventType type, WebMouseEventButton button, unsigned short buttons, const WebCore::IntPoint& position, const WebCore::IntPoint& globalPosition, float deltaX, float deltaY, float deltaZ, int clickCount, OptionSet<WebEventModifier> modifiers, MonotonicTime timestamp)
+    {
+        WebMouseEventData mouse;
+        mouse.button = button;
+        mouse.buttons = buttons;
+        mouse.position = position;
+        mouse.globalPosition = globalPosition;
+        mouse.deltaX = deltaX;
+        mouse.deltaY = deltaY;
+        mouse.deltaZ = deltaZ;
+        mouse.clickCount = clickCount;
+        WebMouseEventInit init { { type, modifiers, timestamp }, WTF::move(mouse) };
+#if PLATFORM(WPE)
+        return adoptRef(*new NativeWebMouseEvent(WTF::move(init)));
+#elif PLATFORM(WIN)
+        return adoptRef(*new NativeWebMouseEvent(WTF::move(init), MSG { }));
+#else
+        return adoptRef(*new NativeWebMouseEvent(WTF::move(init), nullptr));
+#endif
+    }
+#endif
+
 #if USE(APPKIT)
     NSEvent* nativeEvent() const { return m_nativeEvent.get(); }
 #elif PLATFORM(GTK)

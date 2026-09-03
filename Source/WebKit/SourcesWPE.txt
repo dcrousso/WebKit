@@ -142,6 +142,7 @@ UIProcess/API/glib/WebKitBackForwardList.cpp @no-unify
 UIProcess/API/glib/WebKitBackForwardListItem.cpp @no-unify
 UIProcess/API/glib/WebKitClipboardPermissionRequest.cpp @no-unify
 UIProcess/API/glib/WebKitColorChooserRequest.cpp @no-unify
+UIProcess/API/glib/WebKitBrowserInspector.cpp @no-unify
 UIProcess/API/glib/WebKitContextMenuClient.cpp @no-unify
 UIProcess/API/glib/WebKitCookieManager.cpp @no-unify
 UIProcess/API/glib/WebKitCredential.cpp @no-unify
@@ -249,6 +250,7 @@ UIProcess/Gamepad/wpe/PlatformGamepadWPE.cpp
 
 UIProcess/geoclue/GeoclueGeolocationProvider.cpp
 
+UIProcess/glib/BrowserInspectorWebSocketServer.cpp
 UIProcess/glib/DRMMainDevice.cpp @no-unify
 UIProcess/glib/DisplayLinkGLib.cpp
 UIProcess/glib/DisplayVBlankMonitor.cpp
@@ -256,6 +258,7 @@ UIProcess/glib/DisplayVBlankMonitorDRM.cpp
 UIProcess/glib/DisplayVBlankMonitorThreaded.cpp
 UIProcess/glib/DisplayVBlankMonitorTimer.cpp
 UIProcess/glib/FenceMonitor.cpp
+UIProcess/glib/InspectorPlaywrightAgentClientGLib.cpp
 UIProcess/glib/ScreenManager.cpp
 UIProcess/glib/SystemSettingsManagerProxy.cpp
 UIProcess/glib/TextCheckerGLib.cpp
@@ -294,9 +297,12 @@ UIProcess/soup/WebProcessPoolSoup.cpp
 
 UIProcess/wpe/AcceleratedBackingStore.cpp
 UIProcess/wpe/DisplayVBlankMonitorWPE.cpp
+UIProcess/wpe/PageInspectorTargetProxyWPE.cpp
 UIProcess/wpe/ScreenManagerWPE.cpp
 UIProcess/wpe/SystemSettingsManagerProxyWPE.cpp
 UIProcess/wpe/WPEUtilities.cpp
+UIProcess/wpe/WebPageInspectorEmulationAgentWPE.cpp
+UIProcess/wpe/WebPageInspectorInputAgentWPE.cpp
 UIProcess/wpe/WebPageProxyWPE.cpp
 UIProcess/wpe/WebPasteboardProxyWPE.cpp
 UIProcess/wpe/WebPreferencesWPE.cpp

@@ -26,6 +26,7 @@
 #include "UserMediaPermissionRequestManager.h"
 #include "WebPage.h"
 #include "WebPageProxyMessages.h"
+#include <WebCore/ContextDestructionObserverInlines.h>
 #include <WebCore/UserMediaController.h>
 #include <WebCore/UserMediaRequest.h>
 #include <wtf/TZoneMallocInlines.h>

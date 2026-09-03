@@ -21,7 +21,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #pragma once
@@ -227,9 +227,9 @@ public:
     WEBCORE_EXPORT bool containsInvalidHTTPHeaders() const;
 
     WEBCORE_EXPORT static ResourceResponse dataURLResponse(const URL&, const DataURLDecoder::Result&);
-    
+
     WEBCORE_EXPORT ResourceResponseBase(std::optional<ResourceResponseData>&&);
-    
+
     WEBCORE_EXPORT std::optional<ResourceResponseData> getResponseData() const;
 
 protected:
@@ -264,6 +264,11 @@ protected:
     String m_httpStatusText;
     String m_httpVersion;
     HTTPHeaderMap m_httpHeaderFields;
+
+public:
+    HTTPHeaderMap m_httpRequestHeaderFields;
+
+protected:
     Box<NetworkLoadMetrics> m_networkLoadMetrics;
 
     mutable std::optional<CertificateInfo> m_certificateInfo;
@@ -307,7 +312,7 @@ struct ResourceResponseData {
     ResourceResponseData() = default;
     ResourceResponseData(ResourceResponseData&&) = default;
     ResourceResponseData& operator=(ResourceResponseData&&) = default;
-    ResourceResponseData(URL&& url, String&& mimeType, long long expectedContentLength, String&& textEncodingName, int httpStatusCode, String&& httpStatusText, String&& httpVersion, HTTPHeaderMap&& httpHeaderFields, std::optional<NetworkLoadMetrics>&& networkLoadMetrics, ResourceResponseSource source, ResourceResponseBaseType type, ResourceResponseBaseTainting tainting, bool isRedirected, UsedLegacyTLS usedLegacyTLS, WasPrivateRelayed wasPrivateRelayed, String&& proxyName, bool isRangeRequested, std::optional<CertificateInfo> certificateInfo, IPAddressSpace ipAddressSpace)
+    ResourceResponseData(URL&& url, String&& mimeType, long long expectedContentLength, String&& textEncodingName, int httpStatusCode, String&& httpStatusText, String&& httpVersion, HTTPHeaderMap&& httpHeaderFields, HTTPHeaderMap&& httpRequestHeaderFields, std::optional<NetworkLoadMetrics>&& networkLoadMetrics, ResourceResponseSource source, ResourceResponseBaseType type, ResourceResponseBaseTainting tainting, bool isRedirected, UsedLegacyTLS usedLegacyTLS, WasPrivateRelayed wasPrivateRelayed, String&& proxyName, bool isRangeRequested, std::optional<CertificateInfo> certificateInfo, IPAddressSpace ipAddressSpace)
         : url(WTF::move(url))
         , mimeType(WTF::move(mimeType))
         , expectedContentLength(expectedContentLength)
@@ -316,6 +321,7 @@ struct ResourceResponseData {
         , httpStatusText(WTF::move(httpStatusText))
         , httpVersion(WTF::move(httpVersion))
         , httpHeaderFields(WTF::move(httpHeaderFields))
+        , httpRequestHeaderFields(WTF::move(httpRequestHeaderFields))
         , networkLoadMetrics(WTF::move(networkLoadMetrics))
         , source(source)
         , type(type)
@@ -340,6 +346,7 @@ struct ResourceResponseData {
     String httpStatusText;
     String httpVersion;
     HTTPHeaderMap httpHeaderFields;
+    HTTPHeaderMap httpRequestHeaderFields;
     std::optional<NetworkLoadMetrics> networkLoadMetrics;
     ResourceResponseBase::Source source;
     ResourceResponseBase::Type type;

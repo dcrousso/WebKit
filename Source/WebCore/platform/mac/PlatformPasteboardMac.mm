@@ -79,8 +79,25 @@ void PlatformPasteboard::performAsDataOwner(DataOwnerType, NOESCAPE Function<voi
     actions();
 }
 
+static bool s_isolated = false;
+
+void PlatformPasteboard::setIsolated(bool isolated)
+{
+    s_isolated = isolated;
+}
+
+static RetainPtr<NSPasteboard> getNSPasteboard(const String& pasteboardName)
+{
+    RetainPtr name = pasteboardName.createNSString();
+    if (s_isolated && [name isEqualToString:NSPasteboardNameGeneral]) {
+        static NeverDestroyed<RetainPtr<NSPasteboard>> isolatedPasteboard = [NSPasteboard pasteboardWithUniqueName];
+        return isolatedPasteboard.get();
+    }
+    return [NSPasteboard pasteboardWithName:name.get()];
+}
+
 PlatformPasteboard::PlatformPasteboard(const String& pasteboardName)
-    : m_pasteboard([NSPasteboard pasteboardWithName:pasteboardName.createNSString().get()])
+    : m_pasteboard(getNSPasteboard(pasteboardName))
 {
     ASSERT(pasteboardName);
 }
@@ -368,7 +385,7 @@ URL PlatformPasteboard::url()
 
 int64_t PlatformPasteboard::copy(const String& fromPasteboard)
 {
-    RetainPtr pasteboard = [NSPasteboard pasteboardWithName:fromPasteboard.createNSString().get()];
+    RetainPtr pasteboard = getNSPasteboard(fromPasteboard);
     RetainPtr<NSArray> types = [pasteboard types];
 
     [m_pasteboard addTypes:types.get() owner:nil];

@@ -121,7 +121,7 @@ public:
     Inspector::CommandResult<void> showFlexOverlay(int nodeId, Ref<JSON::Object>&& flexOverlayConfig) override;
     Inspector::CommandResult<void> hideFlexOverlay(std::optional<int>&& nodeId) override;
     Inspector::CommandResult<int> pushNodeByPathToFrontend(const String& path) override;
-    Inspector::CommandResult<Ref<Inspector::Protocol::Runtime::RemoteObject>> resolveNode(int nodeId, const String& objectGroup) override;
+    Inspector::CommandResult<Ref<Inspector::Protocol::Runtime::RemoteObject>> resolveNode(std::optional<int>&&, const String&, const String&, std::optional<int>&&, const String&) override;
     Inspector::CommandResult<int> moveTo(int nodeId, int targetNodeId, std::optional<int>&& insertBeforeNodeId) override;
     Inspector::CommandResult<void> undo() override;
     Inspector::CommandResult<void> redo() override;
@@ -130,6 +130,10 @@ public:
     Inspector::CommandResult<void> setInspectedNode(int nodeId) override;
     Inspector::CommandResult<void> setAllowEditingUserAgentShadowTrees(bool) override;
     Inspector::CommandResult<Ref<Inspector::Protocol::DOM::MediaStats>> getMediaStats(int nodeId) override;
+    Inspector::CommandResultOf<String, String> describeNode(const String&) override;
+    Inspector::CommandResult<void> scrollIntoViewIfNeeded(const String&, RefPtr<JSON::Object>&&) override;
+    Inspector::CommandResult<Ref<JSON::ArrayOf<Inspector::Protocol::DOM::Quad>>> getContentQuads(const String&) override;
+    void setInputFiles(const String&, Ref<JSON::Array>&&, Ref<Inspector::DOMBackendDispatcherHandler::SetInputFilesCallback>&&) override;
 
     // InspectorInstrumentation hooks
     void didInsertDOMNode(Node&);
@@ -165,7 +169,7 @@ private:
     RefPtr<Element> assertEditableElement(Inspector::Protocol::ErrorString&, Inspector::Protocol::DOM::NodeId);
 
     RefPtr<Node> nodeForObjectId(const Inspector::Protocol::Runtime::RemoteObjectId&);
-    RefPtr<Inspector::Protocol::Runtime::RemoteObject> resolveNodeInternal(Node*, const String& objectGroup);
+    RefPtr<Inspector::Protocol::Runtime::RemoteObject> resolveNodeInternal(Node*, const String& objectGroup, std::optional<int>&& contextId);
 
     Ref<Inspector::Protocol::DOM::AccessibilityProperties> buildObjectForAccessibilityProperties(Node&);
     void processAccessibilityChildren(AXCoreObject&, JSON::ArrayOf<Inspector::Protocol::DOM::NodeId>&);

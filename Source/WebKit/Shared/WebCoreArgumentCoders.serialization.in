@@ -1815,6 +1815,9 @@ class WebCore::DragData {
 #if PLATFORM(COCOA)
     String pasteboardName();
 #endif
+#if PLATFORM(WIN)
+    WebCore::DragDataMap dragDataMap();
+#endif
     WebCore::IntPoint clientPosition();
     WebCore::IntPoint globalPosition();
 #if PLATFORM(COCOA)

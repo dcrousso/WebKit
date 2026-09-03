@@ -20,7 +20,7 @@
 #ifndef PlatformTouchPoint_h
 #define PlatformTouchPoint_h
 
-#include "DoublePoint.h"
+#include <WebCore/DoublePoint.h>
 
 #if ENABLE(TOUCH_EVENTS)
 

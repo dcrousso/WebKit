@@ -33,6 +33,7 @@
 #if USE(APPKIT)
 #include <wtf/RetainPtr.h>
 OBJC_CLASS NSView;
+OBJC_CLASS NSEvent;
 #endif
 
 #if PLATFORM(GTK)
@@ -71,11 +72,53 @@ public:
 #if USE(APPKIT)
     // FIXME: Share iOS's HandledByInputMethod enum here instead of passing a boolean.
     static Ref<NativeWebKeyboardEvent> create(NSEvent *, bool handledByInputMethod, bool replacesSoftSpace, const Vector<WebCore::KeypressCommand>&);
+    static Ref<NativeWebKeyboardEvent> create(WebEventType type, const String& text, const String& unmodifiedText, const String& key, const String& code, const String& keyIdentifier, int windowsVirtualKeyCode, int nativeVirtualKeyCode, bool isAutoRepeat, bool isKeypad, bool isSystemKey, OptionSet<WebEventModifier> modifiers, MonotonicTime timestamp, Vector<WebCore::KeypressCommand>&& commands)
+    {
+        return adoptRef(*new NativeWebKeyboardEvent(WebKeyboardEventInit {
+            { type, modifiers, timestamp },
+            {
+                .text = text,
+                .unmodifiedText = text,
+                .key = key,
+                .code = code,
+                .keyIdentifier = keyIdentifier,
+                .windowsVirtualKeyCode = windowsVirtualKeyCode,
+                .nativeVirtualKeyCode = nativeVirtualKeyCode,
+                .macCharCode = 0,
+                .handledByInputMethod = false,
+                .commands = WTF::move(commands),
+                .isAutoRepeat = isAutoRepeat,
+                .isKeypad = isKeypad,
+                .isSystemKey = isSystemKey,
+            }
+        }, nullptr));
+    }
 #elif PLATFORM(GTK)
     static Ref<NativeWebKeyboardEvent> create(const NativeWebKeyboardEvent&);
     static Ref<NativeWebKeyboardEvent> create(GdkEvent*, const String&, bool isAutoRepeat, Vector<String>&& commands);
     static Ref<NativeWebKeyboardEvent> create(const String&, std::optional<Vector<WebCore::CompositionUnderline>>&&, std::optional<EditingRange>&&);
     static Ref<NativeWebKeyboardEvent> create(WebEventType, const String& text, const String& key, const String& code, const String& keyIdentifier, int windowsVirtualKeyCode, int nativeVirtualKeyCode, Vector<String>&& commands, bool isAutoRepeat, bool isKeypad, OptionSet<WebEventModifier>);
+    // unmodifiedText and isSystemKey are not stored on this platform; see WebKeyboardEventData.
+    static Ref<NativeWebKeyboardEvent> create(WebEventType type, const String& text, const String&, const String& key, const String& code, const String& keyIdentifier, int windowsVirtualKeyCode, int nativeVirtualKeyCode, bool isAutoRepeat, bool isKeypad, bool, OptionSet<WebEventModifier> modifiers, MonotonicTime timestamp, Vector<String>&& commands)
+    {
+        return adoptRef(*new NativeWebKeyboardEvent(WebKeyboardEventInit {
+            { type, modifiers, timestamp },
+            {
+                .text = text,
+                .key = key,
+                .code = code,
+                .keyIdentifier = keyIdentifier,
+                .windowsVirtualKeyCode = windowsVirtualKeyCode,
+                .nativeVirtualKeyCode = nativeVirtualKeyCode,
+                .handledByInputMethod = false,
+                .preeditUnderlines = std::nullopt,
+                .preeditSelectionRange = std::nullopt,
+                .commands = WTF::move(commands),
+                .isAutoRepeat = isAutoRepeat,
+                .isKeypad = isKeypad,
+            }
+        }, nullptr));
+    }
 #elif PLATFORM(IOS_FAMILY)
     enum class HandledByInputMethod : bool { No, Yes };
     static Ref<NativeWebKeyboardEvent> create(::WebEvent *, HandledByInputMethod);
@@ -84,6 +127,26 @@ public:
     enum class HandledByInputMethod : bool { No, Yes };
     static Ref<NativeWebKeyboardEvent> create(struct wpe_input_keyboard_event*, const String&, bool isAutoRepeat, HandledByInputMethod, std::optional<Vector<WebCore::CompositionUnderline>>&&, std::optional<EditingRange>&&);
 #endif
+    // unmodifiedText and isSystemKey are not stored on this platform; see WebKeyboardEventData.
+    static Ref<NativeWebKeyboardEvent> create(WebEventType type, const String& text, const String&, const String& key, const String& code, const String& keyIdentifier, int windowsVirtualKeyCode, int nativeVirtualKeyCode, bool isAutoRepeat, bool isKeypad, bool, OptionSet<WebEventModifier> modifiers, MonotonicTime timestamp)
+    {
+        return adoptRef(*new NativeWebKeyboardEvent(WebKeyboardEventInit {
+            { type, modifiers, timestamp },
+            {
+                .text = text,
+                .key = key,
+                .code = code,
+                .keyIdentifier = keyIdentifier,
+                .windowsVirtualKeyCode = windowsVirtualKeyCode,
+                .nativeVirtualKeyCode = nativeVirtualKeyCode,
+                .handledByInputMethod = false,
+                .preeditUnderlines = std::nullopt,
+                .preeditSelectionRange = std::nullopt,
+                .isAutoRepeat = isAutoRepeat,
+                .isKeypad = isKeypad,
+            }
+        }));
+    }
 #if ENABLE(WPE_PLATFORM)
     static Ref<NativeWebKeyboardEvent> create(WPEEvent*, const String&, bool isAutoRepeat);
     static Ref<NativeWebKeyboardEvent> create(const String&, std::optional<Vector<WebCore::CompositionUnderline>>&&, std::optional<EditingRange>&&);
@@ -93,6 +156,25 @@ public:
     static Ref<NativeWebKeyboardEvent> create(struct wpe_input_keyboard_event*, const String&, bool isAutoRepeat, HandledByInputMethod, std::optional<Vector<WebCore::CompositionUnderline>>&&, std::optional<EditingRange>&&);
 #elif PLATFORM(WIN)
     static Ref<NativeWebKeyboardEvent> create(HWND, UINT message, WPARAM, LPARAM, Vector<MSG>&& pendingCharEvents);
+    static Ref<NativeWebKeyboardEvent> create(WebEventType type, const String& text, const String& unmodifiedText, const String& key, const String& code, const String& keyIdentifier, int windowsVirtualKeyCode, int nativeVirtualKeyCode, bool isAutoRepeat, bool isKeypad, bool isSystemKey, OptionSet<WebEventModifier> modifiers, MonotonicTime timestamp)
+    {
+        return adoptRef(*new NativeWebKeyboardEvent(WebKeyboardEventInit {
+            { type, modifiers, timestamp },
+            {
+                .text = text,
+                .unmodifiedText = text,
+                .key = key,
+                .code = code,
+                .keyIdentifier = keyIdentifier,
+                .windowsVirtualKeyCode = windowsVirtualKeyCode,
+                .nativeVirtualKeyCode = nativeVirtualKeyCode,
+                .macCharCode = 0,
+                .isAutoRepeat = isAutoRepeat,
+                .isKeypad = isKeypad,
+                .isSystemKey = isSystemKey,
+            }
+        }, MSG { }, { }));
+    }
 #endif
 
 #if USE(APPKIT)

@@ -194,6 +194,9 @@ Ref<WebFrame> WebFrame::createSubframe(WebPage& page, WebFrame& parent, const At
     if (RefPtr backend = Ref { page }->inspector(WebPage::LazyCreationPolicy::UseExistingOnly))
         backend->ensureInstrumentationForFrame(coreFrame.get());
 
+    if (parent.m_inspectorTarget)
+        parent.m_inspectorTarget->didCreateSubframe(frame);
+
     return frame;
 }
 

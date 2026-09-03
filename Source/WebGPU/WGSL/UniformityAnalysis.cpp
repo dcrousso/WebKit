@@ -118,8 +118,10 @@ struct FunctionInfo {
     {
         switch (severity) {
         case SeverityControl::Error:   return requiredToBeUniform[0];
+IGNORE_CLANG_WARNINGS_BEGIN("unsafe-buffer-usage")
         case SeverityControl::Warning: return requiredToBeUniform[1];
         case SeverityControl::Info:    return requiredToBeUniform[2];
+IGNORE_CLANG_WARNINGS_END
         case SeverityControl::Off:     return nullptr;
         }
         RELEASE_ASSERT_NOT_REACHED();
@@ -360,8 +362,10 @@ std::optional<Error> UniformityGraph::processFunction(AST::Function& function)
     m_currentFunction = &info;
 
     info.requiredToBeUniform[0] = info.createNode();
+IGNORE_CLANG_WARNINGS_BEGIN("unsafe-buffer-usage")
     info.requiredToBeUniform[1] = info.createNode();
     info.requiredToBeUniform[2] = info.createNode();
+IGNORE_CLANG_WARNINGS_END
     info.mayBeNonUniform = info.createNode();
     info.cfStart = info.createNode();
 

@@ -87,7 +87,9 @@ public:
 
 private:
     friend class SkFont;
-    SkStrikeRef(sk_sp<SkStrike> strike, SkScalar strikeToSourceScale);
+    SkStrikeRef(sk_sp<SkStrike> strike, SkScalar strikeToSourceScale)
+        : fStrike(std::move(strike))
+        , fStrikeToSourceScale(strikeToSourceScale) {}
 
     sk_sp<SkStrike> fStrike;
     SkScalar fStrikeToSourceScale = 0;

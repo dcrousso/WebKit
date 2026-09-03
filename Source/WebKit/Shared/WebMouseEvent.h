@@ -111,6 +111,7 @@ public:
 
     WebMouseEventButton button() const { return m_data.button; }
     unsigned short buttons() const { return m_data.buttons; }
+    void playwrightSetButtons(unsigned short buttons) { m_data.buttons = buttons; }
     const WebCore::DoublePoint& position() const LIFETIME_BOUND { return m_data.position; } // Relative to the view.
     void setPosition(const WebCore::DoublePoint& position) { m_data.position = position; }
     const WebCore::DoublePoint& globalPosition() const LIFETIME_BOUND { return m_data.globalPosition; }

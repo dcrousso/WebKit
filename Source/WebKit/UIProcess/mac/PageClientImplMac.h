@@ -31,9 +31,11 @@
 #include "PageClientImplCocoa.h"
 #include "WebFullScreenManagerProxy.h"
 #include <WebCore/DOMPasteAccess.h>
+#include <wtf/CheckedPtr.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/Forward.h>
 #include <wtf/WeakObjCPtr.h>
+#include <wtf/WeakPtr.h>
 
 @class WKEditorUndoTarget;
 @class WKView;
@@ -61,6 +63,8 @@ class PageClientImpl final : public PageClientImplCocoa
     WTF_OVERRIDE_DELETE_FOR_CHECKED_PTR(PageClientImpl);
 #endif
 public:
+    static void setHeadless(bool headless);
+
     PageClientImpl(NSView *, WKWebView *);
     virtual ~PageClientImpl();
 
@@ -177,6 +181,9 @@ private:
     void updateAcceleratedCompositingMode(const LayerTreeContext&) override;
     void didFirstLayerFlush(const LayerTreeContext&) override;
 
+// Paywright begin
+    RetainPtr<CGImageRef> takeSnapshotForAutomation() override;
+// Paywright end
     RefPtr<ViewSnapshot> takeViewSnapshot(std::optional<WebCore::IntRect>&&) override;
     RefPtr<ViewSnapshot> takeViewSnapshot(std::optional<WebCore::IntRect>&&, ForceSoftwareCapturingViewportSnapshot) override;
     void wheelEventWasNotHandledByWebCore(const NativeWebWheelEvent&) override;
@@ -235,6 +242,10 @@ private:
     void beganEnterFullScreen(const WebCore::IntRect& initialFrame, const WebCore::IntRect& finalFrame, CompletionHandler<void(bool)>&&) override;
     void beganExitFullScreen(const WebCore::IntRect& initialFrame, const WebCore::IntRect& finalFrame, CompletionHandler<void()>&&) override;
     WebCore::IntRect convertMainFrameCoordinatesInFullscreenPlaceholderViewToScreen(WebPageProxy&, WebCore::IntRect) const override;
+#endif
+
+#if ENABLE(TOUCH_EVENTS)
+    void doneWithTouchEvent(const WebTouchEvent&, bool wasEventHandled) override;
 #endif
 
     void navigationGestureDidBegin() override;

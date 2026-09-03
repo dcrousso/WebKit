@@ -750,3 +750,9 @@ testing/cocoa/WebViewVisualIdentificationOverlay.mm @nonARC
 platform/graphics/angle/GraphicsContextGLANGLE.cpp @no-unify // ANGLE headers redefine GL types/macros that collide with system OpenGL.
 platform/graphics/cocoa/GraphicsContextGLCocoa.mm @nonARC @no-unify // ANGLE headers redefine GL types/macros that collide with system OpenGL.
 platform/graphics/cv/GraphicsContextGLCVCocoa.mm @nonARC @no-unify // ANGLE headers redefine GL types/macros that collide with system OpenGL.
+
+// Playwright begin
+JSTouch.cpp
+JSTouchEvent.cpp
+JSTouchList.cpp
+// Playwright end

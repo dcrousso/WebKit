@@ -213,6 +213,8 @@ public:
     void addAllowedFirstPartyForCookies(const WebCore::RegistrableDomain&, LoadedWebArchive);
     const std::pair<LoadedWebArchive, HashSet<WebCore::RegistrableDomain>>& allowedFirstPartiesForCookiesData() const { return m_allowedFirstPartiesForCookies; }
 
+    static Vector<Ref<WebProcessProxy>> allProcessesForInspector();
+
     void initializeWebProcess(WebProcessCreationParameters&&);
 
     unsigned suspendedPageCount() const;
