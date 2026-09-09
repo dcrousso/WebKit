@@ -57,6 +57,10 @@ static gboolean privateMode;
 static const char* profileDirectory;
 static gboolean automationMode;
 static gboolean ignoreTLSErrors;
+static gboolean inspectorPipe;
+static gint remoteDebuggingPort = -1;
+static gboolean noStartupWindow;
+static const char* userDataDir;
 static const char* contentFilter;
 static const char** userScriptsAtDocumentStart;
 static const char** userScriptsAtDocumentEnd;
@@ -83,6 +87,9 @@ static const char* configFile;
 static gboolean useLegacyAPI;
 #endif
 static const char* defaultWindowTitle = "WPEWebKit MiniBrowser";
+// Playwright begin
+static WPEDisplay* browserDisplay;
+// Playwright end
 #endif
 
 static gboolean parseWindowSize(const char*, const char* value, gpointer, GError** error)
@@ -146,6 +153,10 @@ static const GOptionEntry commandLineOptions[] =
     { "config-file", 0, 0, G_OPTION_ARG_FILENAME, &configFile, "Config file to load for settings", "FILE" },
     { "size", 's', 0, G_OPTION_ARG_CALLBACK, reinterpret_cast<gpointer>(parseWindowSize), "Specify the window size to use, e.g. --size=\"800x600\"", nullptr },
     { "version", 'v', 0, G_OPTION_ARG_NONE, &printVersion, "Print the WPE version", nullptr },
+    { "inspector-pipe", 'v', 0, G_OPTION_ARG_NONE, &inspectorPipe, "Expose remote debugging protocol over pipe", nullptr },
+    { "remote-debugging-port", 0, 0, G_OPTION_ARG_INT, &remoteDebuggingPort, "Start remote debugging server on the specified port", NULL },
+    { "user-data-dir", 0, 0, G_OPTION_ARG_STRING, &userDataDir, "Default profile persistence folder location", "FILE" },
+    { "no-startup-window", 0, 0, G_OPTION_ARG_NONE, &noStartupWindow, "Do not open default page", nullptr },
     { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_FILENAME_ARRAY, &uriArguments, nullptr, "[URL]" },
     { nullptr, 0, 0, G_OPTION_ARG_NONE, nullptr, nullptr, nullptr }
 };
@@ -336,15 +347,38 @@ static void filterSavedCallback(WebKitUserContentFilterStore *store, GAsyncResul
     g_main_loop_quit(data->mainLoop);
 }
 
+static gboolean webViewLoadFailed()
+{
+    return TRUE;
+}
+
 static void webViewClose(WebKitWebView* webView, gpointer user_data)
 {
     // Hash table key delete func takes care of unref'ing the view
     g_hash_table_remove(openViews, webView);
-    if (!g_hash_table_size(openViews))
+    if (!g_hash_table_size(openViews) && user_data)
         g_application_quit(G_APPLICATION(user_data));
 }
 
-static WebKitWebView* createWebView(WebKitWebView* webView, WebKitNavigationAction*, gpointer user_data)
+static gboolean scriptDialog(WebKitWebView*, WebKitScriptDialog* dialog, gpointer)
+{
+    if (inspectorPipe || remoteDebuggingPort != -1)
+        webkit_script_dialog_ref(dialog);
+    return TRUE;
+}
+
+static gboolean scriptDialogHandled(WebKitWebView*, WebKitScriptDialog* dialog, gpointer)
+{
+    if (inspectorPipe || remoteDebuggingPort != -1)
+        webkit_script_dialog_unref(dialog);
+    return TRUE;
+}
+
+static gboolean webViewDecidePolicy(WebKitWebView *webView, WebKitPolicyDecision *decision, WebKitPolicyDecisionType decisionType, gpointer);
+
+static WebKitWebView* createWebView(WebKitWebView* webView, WebKitNavigationAction*, gpointer user_data);
+
+static WebKitWebView* createWebViewImpl(WebKitWebView* webView, WebKitWebContext *webContext, gpointer user_data)
 {
 #if defined(USE_LIBWPE) && USE_LIBWPE
     auto backend = createViewBackend(defaultWindowWidthLegacyAPI, defaultWindowHeightLegacyAPI);
@@ -361,14 +395,27 @@ static WebKitWebView* createWebView(WebKitWebView* webView, WebKitNavigationActi
     }
 #endif
 
-    auto* newWebView = WEBKIT_WEB_VIEW(g_object_new(WEBKIT_TYPE_WEB_VIEW,
+    WebKitWebView* newWebView;
+    if (webView) {
+        newWebView = WEBKIT_WEB_VIEW(g_object_new(WEBKIT_TYPE_WEB_VIEW,
 #if defined(USE_LIBWPE) && USE_LIBWPE
-        "backend", viewBackend,
+            "backend", viewBackend,
 #endif
-        "related-view", webView,
-        "settings", webkit_web_view_get_settings(webView),
-        "user-content-manager", webkit_web_view_get_user_content_manager(webView),
-        nullptr));
+            "related-view", webView,
+            nullptr));
+    } else {
+        newWebView = WEBKIT_WEB_VIEW(g_object_new(WEBKIT_TYPE_WEB_VIEW,
+#if defined(USE_LIBWPE) && USE_LIBWPE
+            "backend", viewBackend,
+#endif
+#if ENABLE_WPE_PLATFORM
+            // Playwright: never fall back to the default native display.
+            "display", browserDisplay,
+#endif
+            "web-context", webContext,
+            "is-controlled-by-automation", TRUE,
+            nullptr));
+    }
 
 #if ENABLE_WPE_PLATFORM
     if (auto* wpeView = webkit_web_view_get_wpe_view(newWebView)) {
@@ -380,9 +427,13 @@ static WebKitWebView* createWebView(WebKitWebView* webView, WebKitNavigationActi
 
     g_signal_connect(newWebView, "create", G_CALLBACK(createWebView), user_data);
     g_signal_connect(newWebView, "close", G_CALLBACK(webViewClose), user_data);
-
+// Playwright begin
+    g_signal_connect(newWebView, "load-failed", G_CALLBACK(webViewLoadFailed), nullptr);
+    g_signal_connect(newWebView, "script-dialog", G_CALLBACK(scriptDialog), nullptr);
+    g_signal_connect(newWebView, "script-dialog-handled", G_CALLBACK(scriptDialogHandled), nullptr);
+    g_signal_connect(newWebView, "decide-policy", G_CALLBACK(webViewDecidePolicy), nullptr);
+// Playwright end
     g_hash_table_add(openViews, newWebView);
-
     return newWebView;
 }
 
@@ -485,6 +536,103 @@ static void loadConfigFile(WebKitSettings* webkitSettings
 #endif
 }
 
+static WebKitWebView* createWebView(WebKitWebView* webView, WebKitNavigationAction*, gpointer user_data)
+{
+    return createWebViewImpl(webView, nullptr, user_data);
+}
+
+inline bool response_policy_decision_can_show(WebKitResponsePolicyDecision* responseDecision)
+{
+    if (webkit_response_policy_decision_is_mime_type_supported(responseDecision))
+        return true;
+    auto response = webkit_response_policy_decision_get_response(responseDecision);
+    const auto statusCode = webkit_uri_response_get_status_code(response);
+    if (statusCode == 205 || statusCode == 204)
+        return true;
+    const gchar* mimeType = webkit_uri_response_get_mime_type(response);
+    if (!mimeType || mimeType[0] == '\0')
+        return false;
+    // https://bugs.webkit.org/show_bug.cgi?id=277204 / Ubuntu 24.04 / glib 2.76+ or higher
+    if (g_ascii_strcasecmp(mimeType, "application/x-zerosize") == 0)
+        return true;
+    return false;
+}
+
+static gboolean webViewDecidePolicy(WebKitWebView *webView, WebKitPolicyDecision *decision, WebKitPolicyDecisionType decisionType, gpointer user_data)
+{
+    if (decisionType == WEBKIT_POLICY_DECISION_TYPE_RESPONSE) {
+        WebKitResponsePolicyDecision *responseDecision = WEBKIT_RESPONSE_POLICY_DECISION(decision);
+        if (!webkit_response_policy_decision_is_main_frame_main_resource(responseDecision))
+            return FALSE;
+
+        if (!response_policy_decision_can_show(responseDecision)) {
+            webkit_policy_decision_download(decision);
+            return TRUE;
+        }
+
+        webkit_policy_decision_use(decision);
+        return TRUE;
+    }
+
+    if (decisionType != WEBKIT_POLICY_DECISION_TYPE_NAVIGATION_ACTION)
+        return FALSE;
+
+    WebKitNavigationAction *navigationAction = webkit_navigation_policy_decision_get_navigation_action(WEBKIT_NAVIGATION_POLICY_DECISION(decision));
+    if (webkit_navigation_action_get_navigation_type(navigationAction) != WEBKIT_NAVIGATION_TYPE_LINK_CLICKED)
+        return FALSE;
+
+    guint modifiers = webkit_navigation_action_get_modifiers(navigationAction);
+    // The modifier values depend on the API in use, see toPlatformModifiers() in WebKitPrivate.cpp.
+#if ENABLE_WPE_PLATFORM
+    const guint ctrlShiftMask = WPE_MODIFIER_KEYBOARD_CONTROL | WPE_MODIFIER_KEYBOARD_SHIFT;
+#else
+    const guint ctrlShiftMask = wpe_input_keyboard_modifier_control | wpe_input_keyboard_modifier_shift;
+#endif
+    if (webkit_navigation_action_get_mouse_button(navigationAction) != 2 /* GDK_BUTTON_MIDDLE */ &&
+        (webkit_navigation_action_get_mouse_button(navigationAction) != 1 /* GDK_BUTTON_PRIMARY */ || (modifiers & ctrlShiftMask) == 0))
+        return FALSE;
+
+    /* Open a new tab if link clicked with the middle button, shift+click or ctrl+click. */
+    WebKitWebView* newWebView = createWebViewImpl(nullptr, webkit_web_view_get_context(webView), user_data);
+    webkit_web_view_load_request(newWebView, webkit_navigation_action_get_request(navigationAction));
+
+    webkit_policy_decision_ignore(decision);
+    return TRUE;
+}
+
+static WebKitWebContext *persistentWebContext = NULL;
+
+static WebKitWebView* createNewPage(WebKitBrowserInspector*, WebKitWebContext *webContext)
+{
+    if (!webContext)
+        webContext = persistentWebContext;
+    WebKitWebView* webView = createWebViewImpl(nullptr, webContext, nullptr);
+    webkit_web_view_load_uri(webView, "about:blank");
+    return webView;
+}
+
+static void quitBroserApplication(WebKitBrowserInspector*, gpointer data)
+{
+    GApplication* application = static_cast<GApplication*>(data);
+    g_application_quit(application);
+}
+
+static void configureBrowserInspector(GApplication* application)
+{
+    WebKitBrowserInspector* browserInspector = webkit_browser_inspector_get_default();
+    g_signal_connect(browserInspector, "create-new-page", G_CALLBACK(createNewPage), NULL);
+    g_signal_connect(browserInspector, "quit-application", G_CALLBACK(quitBroserApplication), application);
+    webkit_browser_inspector_initialize_pipe(proxy, ignoreHosts);
+}
+
+static void configureBrowserInspectorPort(GApplication* application)
+{
+    WebKitBrowserInspector* browserInspector = webkit_browser_inspector_get_default();
+    g_signal_connect(browserInspector, "create-new-page", G_CALLBACK(createNewPage), NULL);
+    g_signal_connect(browserInspector, "quit-application", G_CALLBACK(quitBroserApplication), application);
+    webkit_browser_inspector_initialize_web_socket(remoteDebuggingPort, proxy, ignoreHosts);
+}
+
 #if defined(USE_LIBWPE) && USE_LIBWPE
 static void activate(GApplication* application, WPEToolingBackends::ViewBackend* backend)
 #else
@@ -492,18 +640,23 @@ static void activate(GApplication* application, gpointer)
 #endif
 {
     g_application_hold(application);
+    if (noStartupWindow)
+        return;
 #if ENABLE_2022_GLIB_API
     WebKitNetworkSession* networkSession = nullptr;
     if (!automationMode) {
-        if (privateMode)
+        if (userDataDir) {
+            networkSession = webkit_network_session_new(userDataDir, userDataDir);
+            cookiesFile = g_build_filename(userDataDir, "cookies.txt", nullptr);
+        } else if (inspectorPipe || remoteDebuggingPort != -1 || privateMode || automationMode) {
             networkSession = webkit_network_session_new_ephemeral();
-        else if (profileDirectory) {
+        } else if (profileDirectory) {
             g_autofree char* dataDirectory = g_build_filename(profileDirectory, "data", nullptr);
             g_autofree char* cacheDirectory = g_build_filename(profileDirectory, "cache", nullptr);
             networkSession = webkit_network_session_new(dataDirectory, cacheDirectory);
-        } else
+        } else {
             networkSession = webkit_network_session_new(nullptr, nullptr);
-
+        }
         webkit_network_session_set_itp_enabled(networkSession, enableITP);
 
         if (proxy) {
@@ -530,19 +683,22 @@ static void activate(GApplication* application, gpointer)
             webkit_cookie_manager_set_persistent_storage(cookieManager, cookiesFile, storageType);
         }
     }
-
     auto* webContext = WEBKIT_WEB_CONTEXT(g_object_new(WEBKIT_TYPE_WEB_CONTEXT, "time-zone-override", timeZone, nullptr));
+    webkit_web_context_set_network_session_for_automation(webContext, networkSession);
 #else
-    WebKitWebsiteDataManager* manager;
-    if (privateMode || automationMode)
+    WebKitWebsiteDataManager *manager;
+    if (userDataDir) {
+        manager = webkit_website_data_manager_new("base-data-directory", userDataDir, "base-cache-directory", userDataDir, NULL);
+        cookiesFile = g_build_filename(userDataDir, "cookies.txt", NULL);
+    } else if (inspectorPipe || remoteDebuggingPort != -1 || privateMode || automationMode) {
         manager = webkit_website_data_manager_new_ephemeral();
-    else if (profileDirectory) {
+    } else if (profileDirectory) {
         g_autofree char* dataDirectory = g_build_filename(profileDirectory, "data", nullptr);
         g_autofree char* cacheDirectory = g_build_filename(profileDirectory, "cache", nullptr);
         webkit_website_data_manager_new("base-data-directory", dataDirectory, "base-cache-directory", cacheDirectory, nullptr);
-    } else
-        webkit_website_data_manager_new(nullptr);
-
+    } else {
+        manager = webkit_website_data_manager_new(NULL);
+    }
     webkit_website_data_manager_set_itp_enabled(manager, enableITP);
 
     if (proxy) {
@@ -573,6 +729,7 @@ static void activate(GApplication* application, gpointer)
     }
 #endif
 
+    persistentWebContext = webContext;
     g_autoptr(WebKitUserContentManager) userContentManager = nullptr;
     if (contentFilter) {
         g_autoptr(GFile) contentFilterFile = g_file_new_for_commandline_arg(contentFilter);
@@ -655,12 +812,7 @@ static void activate(GApplication* application, gpointer)
 #endif
 
 #if ENABLE_WPE_PLATFORM_HEADLESS
-#if defined(USE_LIBWPE) && USE_LIBWPE
-    const bool useHeadlessMode = headlessMode && !useLegacyAPI;
-#else
-    const bool useHeadlessMode = headlessMode;
-#endif
-    WPEDisplay* wpeDisplay = useHeadlessMode ? wpe_display_headless_new() : nullptr;
+    WPEDisplay* wpeDisplay = browserDisplay;
 #endif
 
     webkit_web_context_set_automation_allowed(webContext, automationMode);
@@ -687,9 +839,6 @@ static void activate(GApplication* application, gpointer)
         nullptr));
     g_object_unref(settings);
     g_object_unref(defaultWebsitePolicies);
-#if ENABLE_WPE_PLATFORM_HEADLESS
-    g_clear_object(&wpeDisplay);
-#endif
 
 #if defined(USE_LIBWPE) && USE_LIBWPE
     if (backend) {
@@ -731,12 +880,16 @@ static void activate(GApplication* application, gpointer)
 #endif
     }
 
-    openViews = g_hash_table_new_full(nullptr, nullptr, g_object_unref, nullptr);
-
     g_signal_connect(webContext, "automation-started", G_CALLBACK(automationStartedCallback), webView);
     g_signal_connect(webView, "permission-request", G_CALLBACK(decidePermissionRequest), nullptr);
     g_signal_connect(webView, "create", G_CALLBACK(createWebView), application);
     g_signal_connect(webView, "close", G_CALLBACK(webViewClose), application);
+// Playwright begin
+    g_signal_connect(webView, "load-failed", G_CALLBACK(webViewLoadFailed), nullptr);
+    g_signal_connect(webView, "script-dialog", G_CALLBACK(scriptDialog), nullptr);
+    g_signal_connect(webView, "script-dialog-handled", G_CALLBACK(scriptDialogHandled), nullptr);
+    g_signal_connect(webView, "decide-policy", G_CALLBACK(webViewDecidePolicy), nullptr);
+// Playwright end
     g_hash_table_add(openViews, webView);
 
     WebKitColor color;
@@ -744,16 +897,11 @@ static void activate(GApplication* application, gpointer)
         webkit_web_view_set_background_color(webView, &color);
 
     if (uriArguments) {
-        const char* uri = uriArguments[0];
-        if (g_str_equal(uri, "about:gpu"))
-            uri = "webkit://gpu";
-
-        GFile* file = g_file_new_for_commandline_arg(uri);
-        char* url = g_file_get_uri(file);
-        g_object_unref(file);
-        webkit_web_view_load_uri(webView, url);
-        g_free(url);
-    } else if (!automationMode)
+        // Playwright: avoid weird url transformation like http://trac.webkit.org/r240840
+        webkit_web_view_load_uri(webView, uriArguments[0]);
+    } else if (automationMode || inspectorPipe || remoteDebuggingPort != -1)
+        webkit_web_view_load_uri(webView, "about:blank");
+    else
         webkit_web_view_load_uri(webView, "https://wpewebkit.org");
 
     g_object_unref(webContext);
@@ -785,6 +933,16 @@ int main(int argc, char *argv[])
         return 1;
     }
     g_option_context_free(context);
+
+// Playwright begin
+    if (headlessMode) {
+        // Render in software, as with libwpe: wpe_display_get_drm_device() returns NULL under this
+        // env var, keeping web processes on shared-memory buffers instead of the desktop GPU.
+        g_setenv("LIBGL_ALWAYS_SOFTWARE", "true", FALSE);
+        // The Skia DMABuf atlas crashes the web process on the software rendering path.
+        g_setenv("WEBKIT_DISABLE_DMABUF_ATLAS", "1", FALSE);
+    }
+// Playwright end
 
     if (printVersion) {
         g_print("WPE WebKit %u.%u.%u",
@@ -848,6 +1006,27 @@ int main(int argc, char *argv[])
     }
 #endif
 
+#if ENABLE_WPE_PLATFORM_HEADLESS
+// Playwright begin
+#if defined(USE_LIBWPE) && USE_LIBWPE
+    const bool useHeadlessMode = headlessMode && !useLegacyAPI;
+#else
+    const bool useHeadlessMode = headlessMode;
+#endif
+    if (useHeadlessMode) {
+        // Shared headless display passed explicitly to every view; a view without a display would
+        // fall back to wpe_display_get_default() and open a real window on the native display.
+        browserDisplay = wpe_display_headless_new();
+        // Declare mouse + keyboard (headless has none by default) so CSS media features report
+        // hover and a fine pointer, like a desktop browser.
+        wpe_display_set_available_input_devices(browserDisplay,
+            static_cast<WPEAvailableInputDevices>(WPE_AVAILABLE_INPUT_DEVICE_MOUSE | WPE_AVAILABLE_INPUT_DEVICE_KEYBOARD));
+    }
+// Playwright end
+#endif
+
+    openViews = g_hash_table_new_full(nullptr, nullptr, g_object_unref, nullptr);
+
     GApplication* application = g_application_new("org.wpewebkit.MiniBrowser", G_APPLICATION_NON_UNIQUE);
 #if defined(USE_LIBWPE) && USE_LIBWPE
     g_signal_connect(application, "activate", G_CALLBACK(activate), backend.release());
@@ -860,6 +1039,12 @@ int main(int argc, char *argv[])
     };
     g_unix_signal_add(SIGINT, quitOnSignal, application);
     g_unix_signal_add(SIGTERM, quitOnSignal, application);
+
+    if (inspectorPipe)
+        configureBrowserInspector(application);
+    else if (remoteDebuggingPort != -1)
+        configureBrowserInspectorPort(application);
+
     g_application_run(application, 0, nullptr);
     g_object_unref(application);
 

@@ -146,4 +146,23 @@ Inspector::CommandResult<Ref<Inspector::Protocol::DOM::MediaStats>> FrameDOMAgen
     return makeUnexpected("Not supported for frame targets"_s);
 }
 
+Inspector::CommandResultOf<String, String> FrameDOMAgent::describeNode(const String&)
+{
+    return makeUnexpected("Not supported for frame targets"_s);
+}
+
+Inspector::CommandResult<void> FrameDOMAgent::scrollIntoViewIfNeeded(const String&, RefPtr<JSON::Object>&&)
+{
+    return makeUnexpected("Not supported for frame targets"_s);
+}
+
+Inspector::CommandResult<Ref<JSON::ArrayOf<Inspector::Protocol::DOM::Quad>>> FrameDOMAgent::getContentQuads(const String&)
+{
+    return makeUnexpected("Not supported for frame targets"_s);
+}
+
+void FrameDOMAgent::setInputFiles(const String&, Ref<JSON::Array>&&, Ref<Inspector::DOMBackendDispatcherHandler::SetInputFilesCallback>&&)
+{
+}
+
 } // namespace WebCore

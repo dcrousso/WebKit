@@ -134,6 +134,7 @@ namespace WebCore {
         static String keyCodeForHardwareKeyCode(unsigned);
         static String keyIdentifierForWPEKeyCode(unsigned);
         static int windowsKeyCodeForWPEKeyCode(unsigned);
+        static unsigned WPEKeyCodeForWindowsKeyCode(int);
         static String singleCharacterString(unsigned);
 #endif
 

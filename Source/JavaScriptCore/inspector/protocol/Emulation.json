@@ -1,0 +1,69 @@
+{
+    "domain": "Emulation",
+    "availability": ["web"],
+    "types": [
+        {
+            "id": "AuthCredentials",
+            "type": "object",
+            "description": "Credentials for HTTP authentication.",
+            "properties": [
+                { "name": "username", "type": "string" },
+                { "name": "password", "type": "string" },
+                { "name": "origin", "type": "string", "optional": true, "description": "When specified, the credentials are only used for challenges from the matching origin." }
+            ]
+        }
+    ],
+    "commands": [
+        {
+            "name": "setDeviceMetricsOverride",
+            "description": "Overrides device metrics with provided values.",
+            "async": true,
+            "parameters": [
+                { "name": "width", "type": "integer" },
+                { "name": "height", "type": "integer" },
+                { "name": "fixedLayout", "type": "boolean" },
+                { "name": "deviceScaleFactor", "type": "number", "optional": true }
+            ]
+        },
+        {
+            "name": "setJavaScriptEnabled",
+            "description": "Allows to disable script execution for the page.",
+            "parameters": [
+                { "name": "enabled", "type": "boolean" }
+            ]
+        },
+        {
+            "name": "setAuthCredentials",
+            "description": "Credentials to use during HTTP authentication. The first credentials with matching origin are used. When missing, automation handling of authentication challenges is disabled.",
+            "parameters": [
+                { "name": "credentials", "type": "array", "items": { "$ref": "AuthCredentials" }, "optional": true }
+            ]
+        },
+        {
+            "name": "setActiveAndFocused",
+            "description": "Makes page focused for test.",
+            "parameters": [
+                { "name": "active", "type": "boolean", "optional": true }
+            ]
+        },
+        {
+            "name": "grantPermissions",
+            "parameters": [
+                { "name": "origin", "type": "string" },
+                { "name": "permissions", "type": "array", "items": { "type": "string" } }
+            ],
+            "description": "Overrides the permissions."
+        },
+        {
+            "name": "resetPermissions",
+            "description": "Clears permission overrides."
+        },
+        {
+            "name": "setOrientationOverride",
+            "description": "Overrides window.orientation with provided value.",
+            "parameters": [
+                { "name": "angle", "type": "integer", "optional": true }
+            ]
+        }
+    ]
+}

@@ -402,6 +402,7 @@ UIProcess/AboutSchemeHandler.cpp
 UIProcess/AuxiliaryProcessProxy.cpp @cost:4
 UIProcess/BackgroundProcessResponsivenessTimer.cpp
 UIProcess/BrowsingContextGroup.cpp
+UIProcess/BrowserInspectorPipe.cpp
 UIProcess/DeviceIdHashSaltStorage.cpp
 UIProcess/DisplayLink.cpp
 UIProcess/DisplayLinkProcessProxyClient.cpp
@@ -413,17 +414,21 @@ UIProcess/FrameLoadState.cpp
 UIProcess/FrameProcess.cpp
 UIProcess/GeolocationPermissionRequestManagerProxy.cpp @cost:3
 UIProcess/GeolocationPermissionRequestProxy.cpp
+UIProcess/InspectorDialogAgent.cpp
+UIProcess/InspectorPlaywrightAgent.cpp
 UIProcess/LegacyGlobalSettings.cpp
 UIProcess/MediaKeySystemPermissionRequestManagerProxy.cpp @cost:4
 UIProcess/MediaKeySystemPermissionRequestProxy.cpp
 UIProcess/OverrideLanguages.cpp
 UIProcess/PageClient.cpp
 UIProcess/PageLoadState.cpp
+UIProcess/PlaywrightFullScreenManagerProxyClient.cpp
 UIProcess/ProcessActivityGroup.cpp
 UIProcess/ProcessAssertion.cpp
 UIProcess/ProcessThrottler.cpp
 UIProcess/ProvisionalFrameProxy.cpp
 UIProcess/ProvisionalPageProxy.cpp
+UIProcess/RemoteInspectorPipe.cpp
 UIProcess/RemotePageDrawingAreaProxy.cpp
 UIProcess/RemotePageFullscreenManagerProxy.cpp
 UIProcess/RemotePagePlaybackSessionManagerProxy.cpp
@@ -475,6 +480,8 @@ UIProcess/WebOpenPanelResultListenerProxy.cpp
 UIProcess/WebPageDiagnosticLoggingClient.cpp
 UIProcess/WebPageGroup.cpp
 UIProcess/WebPageInjectedBundleClient.cpp
+UIProcess/WebPageInspectorEmulationAgent.cpp
+UIProcess/WebPageInspectorInputAgent.cpp
 UIProcess/WebPageProxy.cpp
 UIProcess/WebPageProxyMessageReceiverRegistration.cpp @cost:3
 UIProcess/WebPageProxyTesting.cpp @cost:4
@@ -644,6 +651,7 @@ UIProcess/Inspector/WebPageDebuggable.cpp
 UIProcess/Inspector/WebPageInspectorController.cpp
 
 UIProcess/Inspector/Agents/InspectorBrowserAgent.cpp
+UIProcess/Inspector/Agents/InspectorScreencastAgent.cpp
 UIProcess/Inspector/Agents/InspectorStorageAgent.cpp
 UIProcess/Inspector/Agents/ProxyingNetworkAgent.cpp
 UIProcess/Inspector/Agents/ProxyingPageAgent.cpp

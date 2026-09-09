@@ -31,6 +31,7 @@
 #if USE(CAIRO)
 
 #include "UpdateInfo.h"
+#include "WebPageProxy.h"
 #include <WebCore/CairoUtilities.h>
 #include <WebCore/GraphicsContextCairo.h>
 #include <WebCore/IntRect.h>

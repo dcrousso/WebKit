@@ -738,6 +738,17 @@ void UserMediaPermissionRequestManagerProxy::processUserMediaPermissionValidRequ
     currentUserMediaRequest->setEligibleVideoDevices(WTF::move(videoDevices));
     currentUserMediaRequest->setEligibleAudioDevices(WTF::move(audioDevices));
 
+    if (RefPtr page = m_page.get(); page && page->isControlledByAutomation() && !currentUserMediaRequest->requiresDisplayCapture()) {
+        auto origin = currentUserMediaRequest->topLevelDocumentSecurityOrigin().toString();
+        bool videoAllowed = !currentUserMediaRequest->hasVideoDevice() || page->permissionForAutomation(origin, "camera"_s).value_or(false);
+        bool audioAllowed = !currentUserMediaRequest->hasAudioDevice() || page->permissionForAutomation(origin, "microphone"_s).value_or(false);
+        if (videoAllowed && audioAllowed)
+            grantRequest(*currentUserMediaRequest);
+        else
+            denyRequest(*currentUserMediaRequest, UserMediaPermissionRequestProxy::UserMediaAccessDenialReason::PermissionDenied);
+        return;
+    }
+
     auto action = getRequestAction(*currentUserMediaRequest);
     ALWAYS_LOG(LOGIDENTIFIER, currentUserMediaRequest->userMediaID() ? currentUserMediaRequest->userMediaID()->toUInt64() : 0, ", action: ", action);
 

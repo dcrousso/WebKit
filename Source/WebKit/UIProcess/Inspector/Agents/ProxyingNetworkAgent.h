@@ -91,6 +91,7 @@ public:
     CommandResult<void> interceptWithResponse(const Protocol::Network::RequestId&, const String& content, bool base64Encoded, const String& mimeType, std::optional<int>&& status, const String& statusText, RefPtr<JSON::Object>&& headers) final;
     CommandResult<void> interceptRequestWithResponse(const Protocol::Network::RequestId&, const String& content, bool base64Encoded, const String& mimeType, int status, const String& statusText, Ref<JSON::Object>&& headers) final;
     CommandResult<void> interceptRequestWithError(const Protocol::Network::RequestId&, Protocol::Network::ResourceErrorType) final;
+    CommandResult<void> setEmulateOfflineState(bool offline) final;
 #if ENABLE(INSPECTOR_NETWORK_THROTTLING)
     CommandResult<void> setEmulatedConditions(std::optional<int>&& bytesPerSecondLimit) final;
 #endif

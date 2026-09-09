@@ -33,6 +33,7 @@
 #include "LayerTreeContext.h"
 #include "MessageSenderInlines.h"
 #include "UpdateInfo.h"
+#include "WebPageInspectorController.h"
 #include "WebPageProxy.h"
 #include "WebPreferences.h"
 #include "WebProcessPool.h"
@@ -40,6 +41,16 @@
 #include <WebCore/Region.h>
 #include <optional>
 #include <wtf/TZoneMallocInlines.h>
+#include <wtf/Vector.h>
+
+#if PLATFORM(GTK)
+#include "WebKitWebViewBasePrivate.h"
+#include <WebCore/NativeImage.h>
+#include <cairo.h>
+#include <skia/core/SkImage.h>
+#include <skia/core/SkSurface.h>
+#include <skia/core/SkCanvas.h>
+#endif
 
 #if USE(GLIB_EVENT_LOOP)
 #include <wtf/glib/RunLoopSourcePriority.h>
@@ -175,6 +186,11 @@ void DrawingAreaProxyCoordinatedGraphics::deviceScaleFactorDidChange(CompletionH
     sendWithAsyncReply(Messages::DrawingArea::SetDeviceScaleFactor(page()->deviceScaleFactor()), WTF::move(completionHandler));
 }
 
+void DrawingAreaProxyCoordinatedGraphics::waitForSizeUpdate(Function<void (const DrawingAreaProxyCoordinatedGraphics&)>&& callback)
+{
+    m_callbacks.append(WTF::move(callback));
+}
+
 void DrawingAreaProxyCoordinatedGraphics::setBackingStoreIsDiscardable(bool isBackingStoreDiscardable)
 {
 #if !PLATFORM(WPE) && !PLATFORM(GTK)
@@ -233,6 +249,37 @@ void DrawingAreaProxyCoordinatedGraphics::updateAcceleratedCompositingMode(uint6
 {
     updateAcceleratedCompositingMode(layerTreeContext);
 }
+
+#if PLATFORM(GTK)
+void DrawingAreaProxyCoordinatedGraphics::captureFrame()
+{
+    if (!isInAcceleratedCompositingMode())
+        return;
+
+    AcceleratedBackingStore* backingStore = webkitWebViewBaseGetAcceleratedBackingStore(WEBKIT_WEB_VIEW_BASE(protect(page())->viewWidget()));
+    if (!backingStore)
+        return;
+
+    uint64_t frameGeneration = backingStore->committedFrameGeneration();
+    if (!frameGeneration || frameGeneration == m_lastCapturedFrameGeneration)
+        return;
+
+    // Reuse the backing store's snapshot path (also used by the test runner). It
+    // returns the committed buffer's contents as a NativeImage in the natural
+    // top-down orientation for every buffer type (GBM, SHM, DMA-BUF, EGLImage),
+    // including on GTK 4.16+ where buffers are backed by a GdkTexture.
+    RefPtr<NativeImage> image = backingStore->bufferAsNativeImageForTesting();
+    if (!image)
+        return;
+
+    sk_sp<SkImage> skImage = image->platformImage();
+    if (!skImage)
+        return;
+
+    m_lastCapturedFrameGeneration = frameGeneration;
+    protect(page())->inspectorController().didPaint(WTF::move(skImage));
+}
+#endif // PLATFORM(GTK)
 
 bool DrawingAreaProxyCoordinatedGraphics::alwaysUseCompositing() const
 {
@@ -305,6 +352,12 @@ void DrawingAreaProxyCoordinatedGraphics::didUpdateGeometry()
     // we need to resend the new size here.
     if (m_lastSentSize != size())
         sendUpdateGeometry();
+    else {
+        Vector<Function<void (const DrawingAreaProxyCoordinatedGraphics&)>> callbacks;
+        callbacks.swap(m_callbacks);
+        for (auto& cb : callbacks)
+            cb(*this);
+    }
 }
 
 #if !PLATFORM(WPE) && !PLATFORM(GTK)

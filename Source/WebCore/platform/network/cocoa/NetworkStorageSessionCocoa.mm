@@ -588,6 +588,27 @@ bool NetworkStorageSession::setCookieFromDOM(const URL& firstParty, const SameSi
     return false;
 }
 
+void NetworkStorageSession::setCookiesFromResponse(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, const String& setCookieValue)
+{
+    auto thirdPartyCookieBlockingDecision = ThirdPartyCookieBlockingDecision::None;
+    Vector<String> cookieValues = setCookieValue.split('\n');
+    size_t count = cookieValues.size();
+    auto* cookies = [NSMutableArray arrayWithCapacity:count];
+    for (const auto& cookieValue : cookieValues) {
+        NSString* cookieString = cookieValue.createNSString().autorelease();
+        NSString* cookieKey = @"Set-Cookie";
+        NSDictionary* headers = [NSDictionary dictionaryWithObjects:[NSArray arrayWithObject:cookieString] forKeys:[NSArray arrayWithObject:cookieKey]];
+        NSArray<NSHTTPCookie*>* parsedCookies = [NSHTTPCookie cookiesWithResponseHeaderFields:headers forURL:url.createNSURL().get()];
+        [cookies addObject:parsedCookies[0]];
+    }
+#if ENABLE(OPT_IN_PARTITIONED_COOKIES) && defined(CFN_COOKIE_ACCEPTS_POLICY_PARTITION) && CFN_COOKIE_ACCEPTS_POLICY_PARTITION
+    String partitionKey = isOptInCookiePartitioningEnabled() ? cookiePartitionIdentifier(firstParty) : String { };
+#else
+    String partitionKey;
+#endif
+    setHTTPCookiesForURL(cookieStorage().get(), cookies, url.createNSURL().get(), firstParty.createNSURL().get(), nsStringNilIfEmpty(partitionKey).get(), sameSiteInfo, thirdPartyCookieBlockingDecision);
+}
+
 static NSHTTPCookieAcceptPolicy httpCookieAcceptPolicy(CFHTTPCookieStorageRef cookieStorage)
 {
     ASSERT(hasProcessPrivilege(ProcessPrivilege::CanAccessRawCookies));

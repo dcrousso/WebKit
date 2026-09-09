@@ -36,6 +36,7 @@
 #include <gst/video/video.h>
 #include <wtf/TZoneMallocInlines.h>
 #include <wtf/glib/GUniquePtr.h>
+#include <wtf/text/ASCIILiteral.h>
 #include <wtf/text/MakeString.h>
 #include <wtf/text/WTFString.h>
 

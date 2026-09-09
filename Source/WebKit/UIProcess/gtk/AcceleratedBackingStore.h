@@ -42,6 +42,7 @@
 #include <wtf/unix/UnixFileDescriptor.h>
 
 typedef void *EGLImage;
+typedef struct _cairo_surface cairo_surface_t;
 
 #if USE(GBM)
 struct gbm_bo;
@@ -85,6 +86,7 @@ public:
     void unrealize();
     RendererBufferDescription bufferDescription() const;
     RefPtr<WebCore::NativeImage> bufferAsNativeImageForTesting() const;
+    uint64_t committedFrameGeneration() const { return m_committedFrameGeneration; }
 
 private:
     explicit AcceleratedBackingStore(WebPageProxy&);
@@ -265,6 +267,7 @@ private:
     WeakPtr<WebProcessProxy> m_legacyMainFrameProcess;
     RefPtr<Buffer> m_pendingBuffer;
     RefPtr<Buffer> m_committedBuffer;
+    uint64_t m_committedFrameGeneration { 0 };
     Rects m_pendingDamageRects;
     HashMap<uint64_t, RefPtr<Buffer>> m_buffers;
 };

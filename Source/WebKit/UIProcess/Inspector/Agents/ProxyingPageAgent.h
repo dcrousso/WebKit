@@ -93,15 +93,26 @@ public:
     CommandResult<void> setShowRulers(bool) final;
 #endif
     CommandResult<void> setShowPaintRects(bool) final;
+    CommandResult<void> goBack() final;
+    CommandResult<void> goForward() final;
+    CommandResult<void> overridePlatform(const String&) final;
+    CommandResult<void> setForcedColors(std::optional<Protocol::Page::ForcedColors>&&) final;
+    CommandResult<void> setTimeZone(const String&) final;
+    CommandResult<void> setTouchEmulationEnabled(bool) final;
     CommandResult<void> setEmulatedMedia(const String&) final;
+    CommandResult<void> insertText(const String&) final;
+    CommandResult<void> setInterceptFileChooserDialog(bool) final;
+    CommandResult<void> setDefaultBackgroundColorOverride(RefPtr<JSON::Object>&&) final;
+    CommandResult<void> createUserWorld(const String&) final;
+    CommandResult<void> setBypassCSP(bool) final;
+    CommandResult<void> crash() final;
+    CommandResult<void> updateScrollingState() final;
     CommandResult<String> snapshotNode(Protocol::DOM::NodeId) final;
-    CommandResult<String> snapshotRect(int x, int y, int width, int height, Protocol::Page::CoordinateSystem) final;
+    CommandResult<String> snapshotRect(int x, int y, int width, int height, Protocol::Page::CoordinateSystem, std::optional<bool>&& omitDeviceScaleFactor, std::optional<Protocol::Page::ImageFormat>&&, std::optional<int>&& quality) final;
 #if ENABLE(WEB_ARCHIVE) && USE(CF)
     CommandResult<String> archive() final;
 #endif
-#if !PLATFORM(COCOA)
     CommandResult<void> setScreenSizeOverride(std::optional<int>&& width, std::optional<int>&& height) final;
-#endif
 
 private:
     // IPC::MessageReceiver

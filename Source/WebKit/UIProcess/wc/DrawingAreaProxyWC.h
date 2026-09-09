@@ -50,6 +50,8 @@ public:
 
     void paint(PlatformPaintContextPtr, const WebCore::IntRect&, WebCore::Region& unpaintedRegion);
 
+    void captureFrame();
+
 private:
     DrawingAreaProxyWC(WebPageProxy&, WebProcessProxy&);
 

@@ -59,6 +59,7 @@ private:
     void record(JSC::JSGlobalObject*, Ref<Inspector::ScriptArguments>&&) override;
     void recordEnd(JSC::JSGlobalObject*, Ref<Inspector::ScriptArguments>&&) override;
     void screenshot(JSC::JSGlobalObject*, Ref<Inspector::ScriptArguments>&&) override;
+    void bindingCalled(JSC::JSGlobalObject*, const String& name, const String& arg) override;
 
     WorkerOrWorkletGlobalScope& globalScope() { return m_globalScope; }
 

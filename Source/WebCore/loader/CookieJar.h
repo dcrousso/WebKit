@@ -49,6 +49,7 @@ class NetworkStorageSession;
 class StorageSessionProvider;
 struct SameSiteInfo;
 enum class ShouldPartitionCookie : bool;
+class ResourceLoader;
 
 class WEBCORE_EXPORT CookieJar : public RefCountedAndCanMakeWeakPtr<CookieJar> {
 public:
@@ -84,6 +85,9 @@ public:
     // Cookie Cache.
     virtual void clearCache() { }
     virtual void clearCacheForHost(const String&) { }
+
+    // Playwright.
+    virtual void setCookieFromResponse(ResourceLoader&, const String&) { }
 
     virtual ~CookieJar();
 protected:

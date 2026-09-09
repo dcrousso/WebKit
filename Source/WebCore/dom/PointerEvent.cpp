@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "config.h"
@@ -28,7 +28,9 @@
 
 #include "EventNames.h"
 #include "MouseEventTypes.h"
+#include "MouseEvent.h"
 #include "Node.h"
+#include "PlatformTouchEvent.h"
 #include "PointerEventTypeNames.h"
 #include <numbers>
 #include <wtf/TZoneMallocInlines.h>
@@ -379,5 +381,60 @@ double PointerEvent::offsetY()
 
     return adjustedCoordinateForType(offsetLocation().y());
 }
+
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS_FAMILY) && !PLATFORM(WPE) && !PLATFORM(GTK)
+
+static const AtomString& pointerEventType(PlatformTouchPoint::State state)
+{
+    switch (state) {
+    case PlatformTouchPoint::State::TouchPressed:
+        return eventNames().pointerdownEvent;
+    case PlatformTouchPoint::State::TouchMoved:
+        return eventNames().pointermoveEvent;
+    case PlatformTouchPoint::State::TouchStationary:
+        return eventNames().pointermoveEvent;
+    case PlatformTouchPoint::State::TouchReleased:
+        return eventNames().pointerupEvent;
+    case PlatformTouchPoint::State::TouchCancelled:
+        return eventNames().pointercancelEvent;
+    case PlatformTouchPoint::State::TouchStateEnd:
+        break;
+    }
+    ASSERT_NOT_REACHED();
+    return nullAtom();
+}
+
+Ref<PointerEvent> PointerEvent::create(const PlatformTouchEvent& event, const Vector<Ref<PointerEvent>>& coalescedEvents, const Vector<Ref<PointerEvent>>& predictedEvents, unsigned touchIndex, bool isPrimary, Ref<WindowProxy>&& view, const DoublePoint& touchDelta)
+{
+    const auto& type = pointerEventType(event.touchPoints().at(touchIndex).state());
+    return adoptRef(*new PointerEvent(type, event, coalescedEvents, predictedEvents, typeCanBubble(type), typeIsCancelable(type), touchIndex, isPrimary, WTF::move(view), touchDelta));
+}
+
+Ref<PointerEvent> PointerEvent::create(const PlatformTouchEvent& event, const Vector<Ref<PointerEvent>>& coalescedEvents, const Vector<Ref<PointerEvent>>& predictedEvents, CanBubble canBubble, IsCancelable isCancelable, unsigned touchIndex, bool isPrimary, Ref<WindowProxy>&& view, const DoublePoint& touchDelta)
+{
+    const auto& type = pointerEventType(event.touchPoints().at(touchIndex).state());
+    return adoptRef(*new PointerEvent(type, event, coalescedEvents, predictedEvents, canBubble, isCancelable, touchIndex, isPrimary, WTF::move(view), touchDelta));
+}
+
+Ref<PointerEvent> PointerEvent::create(const AtomString& type, const PlatformTouchEvent& event, const Vector<Ref<PointerEvent>>& coalescedEvents, const Vector<Ref<PointerEvent>>& predictedEvents, unsigned touchIndex, bool isPrimary, Ref<WindowProxy>&& view, const DoublePoint& touchDelta)
+{
+    return adoptRef(*new PointerEvent(type, event, coalescedEvents, predictedEvents, typeCanBubble(type), typeIsCancelable(type), touchIndex, isPrimary, WTF::move(view), touchDelta));
+}
+
+PointerEvent::PointerEvent(const AtomString& type, const PlatformTouchEvent& event, const Vector<Ref<PointerEvent>>& coalescedEvents, const Vector<Ref<PointerEvent>>& predictedEvents, CanBubble canBubble, IsCancelable isCancelable, unsigned touchIndex, bool isPrimary, Ref<WindowProxy>&& view, const DoublePoint& touchDelta)
+    : MouseEvent(EventInterfaceType::PointerEvent, type, canBubble, isCancelable, typeIsComposed(type), event.timestamp().approximate<MonotonicTime>(), WTF::move(view), 0,
+        event.touchPoints().at(touchIndex).pos(), event.touchPoints().at(touchIndex).pos(), touchDelta.x(), touchDelta.y(), event.modifiers(), buttonForType(type), buttonsForType(type), nullptr, 0, SyntheticClickType::NoTap, { }, { }, std::nullopt, IsSimulated::No, IsTrusted::Yes)
+    , m_pointerId(event.touchPoints().at(touchIndex).id())
+    , m_width(2 * event.touchPoints().at(touchIndex).radius().width())
+    , m_height(2 * event.touchPoints().at(touchIndex).radius().height())
+    , m_pressure(event.touchPoints().at(touchIndex).force())
+    , m_pointerType(touchPointerEventType())
+    , m_isPrimary(isPrimary)
+    , m_coalescedEvents(coalescedEvents)
+    , m_predictedEvents(predictedEvents)
+{
+}
+
+#endif // ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS_FAMILY) && !PLATFORM(WPE) && !PLATFORM(GTK)
 
 } // namespace WebCore

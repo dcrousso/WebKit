@@ -337,6 +337,8 @@ public:
 
     void didDestroyFrame(WebCore::FrameIdentifier);
 
+    static std::optional<String> platformGetBase64EncodedPNGData(const ViewSnapshot&);
+
     RefPtr<WebPageProxy> webPageProxyForHandle(const String&);
     String effectiveHandleForWebFrameProxy(const WebFrameProxy&);
     String handleForWebFrameID(std::optional<WebCore::FrameIdentifier>);
@@ -404,7 +406,6 @@ private:
 
     // Get base64-encoded PNG data from a bitmap.
     static std::optional<String> platformGetBase64EncodedPNGData(WebCore::ShareableBitmap::Handle&&);
-    static std::optional<String> platformGetBase64EncodedPNGData(const ViewSnapshot&);
 
     // Save base64-encoded file contents to a local file path and return the path.
     // This reuses the basename of the remote file path so that the filename exposed to DOM API remains the same.

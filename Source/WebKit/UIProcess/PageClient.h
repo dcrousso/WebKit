@@ -79,6 +79,11 @@
 #include <WebCore/PlatformTextAlternatives.h>
 #endif
 
+#if USE(SKIA)
+#include <skia/core/SkData.h>
+#include <skia/core/SkImage.h>
+#endif
+
 OBJC_CLASS AVPlayerViewController;
 OBJC_CLASS CALayer;
 OBJC_CLASS NSFileWrapper;
@@ -411,7 +416,15 @@ public:
     virtual void selectionDidChange() = 0;
 #endif
 
-#if PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE)
+// Paywright begin
+#if PLATFORM(COCOA)
+    virtual RetainPtr<CGImageRef> takeSnapshotForAutomation() = 0;
+#elif PLATFORM(GTK) || PLATFORM(WPE)
+    virtual RefPtr<ViewSnapshot> takeViewSnapshot(std::optional<WebCore::IntRect>&&, bool nominalResolution = false) = 0;
+#endif
+// Paywright end
+
+#if PLATFORM(COCOA)
     virtual RefPtr<ViewSnapshot> takeViewSnapshot(std::optional<WebCore::IntRect>&&) = 0;
 #endif
 

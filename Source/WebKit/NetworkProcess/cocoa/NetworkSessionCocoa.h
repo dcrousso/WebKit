@@ -145,6 +145,10 @@ public:
 
     CFDictionaryRef proxyConfiguration() const { return m_proxyConfiguration.get(); }
 
+#if HAVE(CFNETWORK_HOSTOVERRIDE)
+    RetainPtr<nw_endpoint_t> loopbackProxyHostOverrideForURL(const URL&) const;
+#endif
+
     bool hasIsolatedSession(const WebCore::RegistrableDomain&) const override;
     void clearIsolatedSessions() override;
 

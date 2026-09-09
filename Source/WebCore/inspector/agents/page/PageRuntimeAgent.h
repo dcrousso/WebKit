@@ -39,6 +39,7 @@
 
 namespace JSC {
 class CallFrame;
+class JSGlobalObject;
 }
 
 namespace WebCore {
@@ -60,10 +61,13 @@ public:
     Inspector::Protocol::ErrorStringOr<void> disable();
     Inspector::Protocol::ErrorStringOr<std::tuple<Ref<Inspector::Protocol::Runtime::RemoteObject>, std::optional<bool> /* wasThrown */, std::optional<int> /* savedResultIndex */>> evaluate(const String& expression, const String& objectGroup, std::optional<bool>&& includeCommandLineAPI, std::optional<bool>&& doNotPauseOnExceptionsAndMuteConsole, std::optional<Inspector::Protocol::Runtime::ExecutionContextId>&&, std::optional<bool>&& returnByValue, std::optional<bool>&& generatePreview, std::optional<bool>&& saveResult, std::optional<bool>&& emulateUserGesture);
     void callFunctionOn(const Inspector::Protocol::Runtime::RemoteObjectId&, const String& functionDeclaration, RefPtr<JSON::Array>&& arguments, std::optional<bool>&& doNotPauseOnExceptionsAndMuteConsole, std::optional<bool>&& returnByValue, std::optional<bool>&& generatePreview, std::optional<bool>&& emulateUserGesture, std::optional<bool>&& awaitPromise, Ref<CallFunctionOnCallback>&&);
+    Inspector::Protocol::ErrorStringOr<void> addBinding(const String& name);
 
     // InspectorInstrumentation
     void frameNavigated(LocalFrame&);
     void didClearWindowObjectInWorld(LocalFrame&, DOMWrapperWorld&);
+    void didReceiveMainResourceError(LocalFrame&);
+    void bindingCalled(JSC::JSGlobalObject* globalObject, const String& name, const String& arg);
 
     bool ignoreDidClearWindowObject() const { return m_ignoreDidClearWindowObject; }
 
@@ -82,6 +86,8 @@ private:
     WeakRef<Page> m_inspectedPage;
 
     bool m_ignoreDidClearWindowObject { false };
+
+    HashSet<String> m_bindingNames;
 };
 
 } // namespace WebCore

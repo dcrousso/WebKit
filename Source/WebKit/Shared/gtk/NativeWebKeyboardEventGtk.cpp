@@ -68,7 +68,7 @@ Ref<NativeWebKeyboardEvent> NativeWebKeyboardEvent::create(const String& text, s
     }, nullptr));
 }
 
-Ref<NativeWebKeyboardEvent> NativeWebKeyboardEvent::create(WebEventType type, const String& text, const String& key, const String& code, const String& keyIdentifier, int windowsVirtualKeyCode, int nativeVirtualKeyCode, Vector<String>&& commands, bool isAutoRepeat, bool isKeypad, OptionSet<WebEventModifier> modifiers)
+Ref<NativeWebKeyboardEvent> NativeWebKeyboardEvent::create(WebEventType type, const String& text, const String& key, const String& code, const String& keyIdentifier, int windowsVirtualKeyCode, int nativeVirtualKeyCode, Vector<String>&& commands, bool, bool isKeypad, OptionSet<WebEventModifier> modifiers)
 {
     return adoptRef(*new NativeWebKeyboardEvent(WebKeyboardEventInit {
         { type, modifiers, MonotonicTime::now() },
@@ -83,7 +83,8 @@ Ref<NativeWebKeyboardEvent> NativeWebKeyboardEvent::create(WebEventType type, co
             .preeditUnderlines = std::nullopt,
             .preeditSelectionRange = std::nullopt,
             .commands = WTF::move(commands),
-            .isAutoRepeat = isAutoRepeat,
+            // Downstream: synthesized key events are never auto-repeats.
+            .isAutoRepeat = false,
             .isKeypad = isKeypad,
         }
     }, nullptr));
