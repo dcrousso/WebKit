@@ -1354,6 +1354,12 @@ void NetworkConnectionToWebProcess::allowAccessToFile(const String& path)
     m_allowedFilePaths.add(FileSystem::lexicallyNormal(path));
 }
 
+void NetworkConnectionToWebProcess::setEmulateOfflineState(bool offline, CompletionHandler<void(bool, bool)>&& completionHandler)
+{
+    bool success = m_networkProcess->setEmulateOfflineState(m_sessionID, offline);
+    completionHandler(success, m_networkProcess->isOnLine(m_sessionID));
+}
+
 void NetworkConnectionToWebProcess::setCaptureExtraNetworkLoadMetricsEnabled(bool enabled)
 {
     m_captureExtraNetworkLoadMetricsEnabled = enabled;

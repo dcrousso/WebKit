@@ -1392,7 +1392,8 @@ Inspector::Protocol::ErrorStringOr<void> InspectorNetworkAgent::setEmulatedCondi
 
 Inspector::Protocol::ErrorStringOr<void> InspectorNetworkAgent::setEmulateOfflineState(bool offline)
 {
-    platformStrategies()->loaderStrategy()->setEmulateOfflineState(offline);
+    if (!platformStrategies()->loaderStrategy()->setEmulateOfflineState(offline))
+        return makeUnexpected("Could not emulate offline state"_s);
     return { };
 }
 

@@ -206,11 +206,11 @@ NetworkProcess::NetworkProcess()
     LegacyCustomProtocolManager::networkProcessCreated(*this);
 #endif
 
-    NetworkStateNotifier::singleton().addListener([weakThis = WeakPtr { *this }](bool isOnLine) {
+    NetworkStateNotifier::singleton().addListener([weakThis = WeakPtr { *this }](bool) {
         if (!weakThis)
             return;
         for (auto& webProcessConnection : weakThis->m_webProcessConnections.values())
-            webProcessConnection->setOnLineState(isOnLine);
+            webProcessConnection->setOnLineState(weakThis->isOnLine(webProcessConnection->sessionID()));
     });
 }
 
@@ -433,7 +433,7 @@ void NetworkProcess::createNetworkConnectionToWebProcess(ProcessIdentifier ident
 
     RELEASE_LOG(Process, "%p - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier %" PRIu64 " to the UI process", this, identifier.toUInt64());
 
-    connection->setOnLineState(NetworkStateNotifier::singleton().onLine());
+    connection->setOnLineState(isOnLine(sessionID));
 
 #if ENABLE(IPC_TESTING_API)
     if (parameters.ignoreInvalidMessageForTesting)
@@ -3069,6 +3069,29 @@ void NetworkProcess::setEmulatedConditions(PAL::SessionID sessionID, std::option
 }
 
 #endif // ENABLE(INSPECTOR_NETWORK_THROTTLING)
+
+bool NetworkProcess::isOnLine(PAL::SessionID sessionID) const
+{
+    CheckedPtr session = networkSession(sessionID);
+    return NetworkStateNotifier::singleton().onLine() && (!session || !session->emulateOfflineState());
+}
+
+bool NetworkProcess::setEmulateOfflineState(PAL::SessionID sessionID, bool offline)
+{
+    CheckedPtr session = networkSession(sessionID);
+    if (!session)
+        return false;
+    if (session->emulateOfflineState() == offline)
+        return true;
+
+    session->setEmulateOfflineState(offline);
+    bool isOnLine = this->isOnLine(sessionID);
+    for (auto& connection : m_webProcessConnections.values()) {
+        if (connection->sessionID() == sessionID)
+            connection->setOnLineState(isOnLine);
+    }
+    return true;
+}
 
 #if !PLATFORM(COCOA)
 void NetworkProcess::initializeProcess(const AuxiliaryProcessInitializationParameters&)

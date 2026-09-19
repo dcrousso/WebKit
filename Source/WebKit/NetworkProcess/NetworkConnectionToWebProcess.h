@@ -357,6 +357,7 @@ private:
     bool ownsBlobURL(const URL&) const;
 
     void setCaptureExtraNetworkLoadMetricsEnabled(bool);
+    void setEmulateOfflineState(bool offline, CompletionHandler<void(bool, bool)>&&);
 
     void createSocketChannel(const WebCore::ResourceRequest&, const String& protocol, WebCore::WebSocketIdentifier, WebPageProxyIdentifier, std::optional<WebCore::FrameIdentifier>, std::optional<WebCore::PageIdentifier>, const WebCore::ClientOrigin&, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<WebCore::AdvancedPrivacyProtections>, WebCore::StoredCredentialsPolicy, WebCore::IsInitiatedByDedicatedWorker);
     void countWebSocketChannelsForTesting(CompletionHandler<void(uint32_t)>&&);

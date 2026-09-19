@@ -277,11 +277,6 @@ void WebLoaderStrategy::scheduleLoad(ResourceLoader& resourceLoader, CachedResou
     }
 #endif
 
-    if (m_emulateOfflineState) {
-        scheduleInternallyFailedLoad(resourceLoader);
-        return;
-    }
-
 #if ENABLE(PDFJS)
     if (tryLoadingUsingPDFJSHandler(resourceLoader, trackingParameters))
         return;
@@ -1040,7 +1035,7 @@ void WebLoaderStrategy::didFinishPreconnection(WebCore::ResourceLoaderIdentifier
 
 bool WebLoaderStrategy::isOnLine() const
 {
-    return m_emulateOfflineState ? false : m_isOnLine;
+    return m_isOnLine;
 }
 
 void WebLoaderStrategy::addOnlineStateChangeListener(Function<void(bool)>&& listener)
@@ -1066,11 +1061,6 @@ void WebLoaderStrategy::isResourceLoadFinished(CachedResource& resource, Complet
 
 void WebLoaderStrategy::setOnLineState(bool isOnLine)
 {
-    if (m_emulateOfflineState) {
-        m_isOnLine = isOnLine;
-        return;
-    }
-
     if (m_isOnLine == isOnLine)
         return;
 
@@ -1079,10 +1069,15 @@ void WebLoaderStrategy::setOnLineState(bool isOnLine)
         listener(isOnLine);
 }
 
-void WebLoaderStrategy::setEmulateOfflineState(bool offline) {
-    m_emulateOfflineState = offline;
-    for (auto& listener : m_onlineStateChangeListeners)
-        listener(offline ? false : m_isOnLine);
+bool WebLoaderStrategy::setEmulateOfflineState(bool offline)
+{
+    auto sendResult = protect(WebProcess::singleton().ensureNetworkProcessConnection().connection())->sendSync(Messages::NetworkConnectionToWebProcess::SetEmulateOfflineState(offline), 0);
+    auto [success, isOnLine] = sendResult.takeReplyOr(false, false);
+    if (!success)
+        return false;
+
+    setOnLineState(isOnLine);
+    return true;
 }
 
 void WebLoaderStrategy::setCaptureExtraNetworkLoadMetricsEnabled(bool enabled)

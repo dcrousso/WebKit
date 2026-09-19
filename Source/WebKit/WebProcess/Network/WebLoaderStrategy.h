@@ -95,7 +95,7 @@ public:
     bool isOnLine() const final;
     void addOnlineStateChangeListener(Function<void(bool)>&&) final;
     void setOnLineState(bool);
-    void setEmulateOfflineState(bool) final;
+    bool setEmulateOfflineState(bool) final;
 
     bool fillParametersForNetworkProcessLoad(WebCore::ResourceLoader&, const WebCore::ResourceRequest&, const WebResourceLoader::TrackingParameters&, bool shouldClearReferrerOnHTTPSToHTTPRedirect, Seconds maximumBufferingTime, NetworkResourceLoadParameters&);
 
@@ -167,7 +167,6 @@ private:
     Vector<Function<void(bool)>> m_onlineStateChangeListeners;
     std::optional<NetworkResourceLoadIdentifier> m_existingNetworkResourceLoadIdentifierToResume;
     bool m_isOnLine { true };
-    bool m_emulateOfflineState { false };
 };
 
 } // namespace WebKit

@@ -248,6 +248,14 @@ NetworkLoad::NetworkLoad(NetworkLoadClient& client, NetworkLoadParameters&& para
     , m_parameters(WTF::move(parameters))
     , m_currentRequest(m_parameters.request)
 {
+    if (networkSession.emulateOfflineState() && m_currentRequest.url().protocolIsInHTTPFamily()) {
+        RunLoop::mainSingleton().dispatch([weakThis = WeakPtr { *this }] {
+            if (RefPtr protectedThis = weakThis.get())
+                protectedThis->didCompleteWithError(internalError(protectedThis->url()), { });
+        });
+        return;
+    }
+
     if (m_parameters.request.url().protocolIsBlob())
         m_task = NetworkDataTaskBlob::create(networkSession, *this, m_parameters.request, m_parameters.blobFileReferences, m_parameters.topOrigin);
     else
