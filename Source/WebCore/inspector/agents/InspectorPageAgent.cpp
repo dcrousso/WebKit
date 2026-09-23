@@ -32,6 +32,7 @@
 #include "config.h"
 #include "InspectorPageAgent.h"
 
+#include "BackForwardController.h"
 #include "CachedResource.h"
 #include "Cookie.h"
 #include "CookieJar.h"
@@ -39,13 +40,16 @@
 #include "DocumentLoader.h"
 #include "DocumentResourceLoader.h"
 #include "DocumentView.h"
+#include "Editor.h"
 #include "ElementInlines.h"
+#include "FocusController.h"
 #include "ForcedAccessibilityValue.h"
 #include "FrameInlines.h"
 #include "FrameLoadRequest.h"
 #include "FrameLoader.h"
 #include "FrameSnapshotting.h"
 #include "HTMLFrameOwnerElement.h"
+#include "HTMLInputElement.h"
 #include "HTMLNames.h"
 #include "ImageBuffer.h"
 #include "ImageUtilities.h"
@@ -56,6 +60,7 @@
 #include "InspectorOverlay.h"
 #include "InspectorResourceUtilities.h"
 #include "InstrumentingAgents.h"
+#include "JSDOMWindowCustom.h"
 #include "LocalFrame.h"
 #include "LocalFrameView.h"
 #include "MIMETypeRegistry.h"
@@ -65,26 +70,36 @@
 #include "PageRuntimeAgent.h"
 #include "RegistrableDomain.h"
 #include "RemoteFrame.h"
+#include "PlatformScreen.h"
 #include "RenderObjectInlines.h"
 #include "RenderTheme.h"
 #include "ScriptController.h"
 #include "ScriptSourceCode.h"
+#include "ScrollingCoordinator.h"
 #include "SecurityOrigin.h"
 #include "Settings.h"
 #include "ShouldPartitionCookie.h"
 #include "StyleScope.h"
 #include "Theme.h"
+#include "TypingCommand.h"
 #include <pal/text/TextEncoding.h>
 #include "UserGestureIndicator.h"
 #include <JavaScriptCore/ContentSearchUtilities.h>
 #include <JavaScriptCore/IdentifiersFactory.h>
+#include <JavaScriptCore/InjectedScriptManager.h>
+#include <JavaScriptCore/JSDateMath.h>
 #include <JavaScriptCore/RegularExpression.h>
+#include <wtf/DateMath.h>
 #include <wtf/HashSet.h>
 #include <wtf/ListHashSet.h>
+#include <wtf/NeverDestroyed.h>
 #include <wtf/Stopwatch.h>
 #include <wtf/TZoneMallocInlines.h>
+#include <wtf/TimeZone.h>
 #include <wtf/text/Base64.h>
+#include <wtf/text/MakeString.h>
 #include <wtf/text/StringBuilder.h>
+#include <wtf/text/StringToIntegerConversion.h>
 
 #if ENABLE(APPLICATION_MANIFEST)
 #include "CachedApplicationManifest.h"
@@ -105,6 +120,11 @@ using namespace Inspector;
 
 WTF_MAKE_TZONE_ALLOCATED_IMPL(InspectorPageAgent);
 
+static UncheckedKeyHashMap<String, Ref<DOMWrapperWorld>>& createdUserWorlds() {
+    static NeverDestroyed<UncheckedKeyHashMap<String, Ref<DOMWrapperWorld>>> nameToWorld;
+    return nameToWorld;
+}
+
 InspectorOverlay& InspectorPageAgent::overlay() const
 {
     return m_overlay.get();
@@ -115,6 +135,7 @@ InspectorPageAgent::InspectorPageAgent(PageAgentContext& context, InspectorBacke
     , m_frontendDispatcher(makeUniqueRef<Inspector::PageFrontendDispatcher>(context.frontendRouter))
     , m_backendDispatcher(Inspector::PageBackendDispatcher::create(protect(context.backendDispatcher), this))
     , m_inspectedPage(context.inspectedPage)
+    , m_injectedScriptManager(context.injectedScriptManager)
     , m_client(client)
     , m_overlay(overlay)
 {
@@ -145,12 +166,20 @@ Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::enable()
 
     defaultUserPreferencesDidChange();
 
+    if (!createdUserWorlds().isEmpty()) {
+        Vector<DOMWrapperWorld*> worlds;
+        for (const auto& world : createdUserWorlds().values())
+            worlds.append(world.ptr());
+        ensureUserWorldsExistInAllFrames(worlds);
+    }
     return { };
 }
 
 Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::disable()
 {
     Ref { m_instrumentingAgents.get() }->setEnabledPageAgent(nullptr);
+    m_interceptFileChooserDialog = false;
+    m_bypassCSP = false;
 
     std::ignore = setShowPaintRects(false);
 #if !PLATFORM(IOS_FAMILY)
@@ -211,9 +240,32 @@ Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::reload(std::optiona
     return { };
 }
 
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::goBack()
+{
+    if (!m_inspectedPage->backForward().goBack())
+        return makeUnexpected("Failed to go back"_s);
+
+    return { };
+}
+
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::goForward()
+{
+    if (!m_inspectedPage->backForward().goForward())
+        return makeUnexpected("Failed to go forward"_s);
+
+    return { };
+}
+
 Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::overrideUserAgent(const String& value)
 {
     m_userAgentOverride = value;
+
+    return { };
+}
+
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::overridePlatform(const String& value)
+{
+    m_platformOverride = value;
 
     return { };
 }
@@ -230,6 +282,12 @@ Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::overrideSetting(Ins
     case Inspector::Protocol::Page::Setting::AuthorAndUserStylesEnabled:
         inspectedPageSettings.setAuthorAndUserStylesEnabledInspectorOverride(value);
         return { };
+
+#if ENABLE(DEVICE_ORIENTATION)
+    case Inspector::Protocol::Page::Setting::DeviceOrientationEventEnabled:
+        inspectedPageSettings.setDeviceOrientationEventEnabled(value.value_or(false));
+        return { };
+#endif
 
     case Inspector::Protocol::Page::Setting::FixedBackgroundsPaintRelativeToDocument:
         inspectedPageSettings.setFixedBackgroundsPaintRelativeToDocumentInspectorOverride(value);
@@ -296,6 +354,12 @@ Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::overrideSetting(Ins
     case Inspector::Protocol::Page::Setting::ShowRepaintCounter:
         inspectedPageSettings.setShowRepaintCounterInspectorOverride(value);
         return { };
+
+#if ENABLE(MEDIA_STREAM)
+    case Inspector::Protocol::Page::Setting::SpeechRecognitionEnabled:
+        inspectedPageSettings.setSpeechRecognitionEnabled(value.value_or(false));
+        return { };
+#endif
 
     case Inspector::Protocol::Page::Setting::WebSecurityEnabled:
         inspectedPageSettings.setWebSecurityEnabledInspectorOverride(value);
@@ -734,20 +798,35 @@ Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::setShowPaintRects(b
     return { };
 }
 
-void InspectorPageAgent::domContentEventFired()
+void InspectorPageAgent::domContentEventFired(LocalFrame& frame)
 {
-    m_isFirstLayoutAfterOnLoad = true;
-    m_frontendDispatcher->domContentEventFired(timestamp());
+    if (frame.isMainFrame())
+        m_isFirstLayoutAfterOnLoad = true;
+    m_frontendDispatcher->domContentEventFired(timestamp(), frameId(&frame));
 }
 
-void InspectorPageAgent::loadEventFired()
+void InspectorPageAgent::loadEventFired(LocalFrame& frame)
 {
-    m_frontendDispatcher->loadEventFired(timestamp());
+    m_frontendDispatcher->loadEventFired(timestamp(), frameId(&frame));
 }
 
 void InspectorPageAgent::frameNavigated(LocalFrame& frame)
 {
     m_frontendDispatcher->frameNavigated(buildObjectForFrame(&frame));
+}
+
+String InspectorPageAgent::serializeFrameID(FrameIdentifier frameID)
+{
+    return makeString(frameID.toUInt64());
+}
+
+std::optional<FrameIdentifier> InspectorPageAgent::parseFrameID(String frameID)
+{
+    auto frameIDNumber = parseInteger<uint64_t>(frameID);
+    if (!frameIDNumber)
+        return std::nullopt;
+
+    return WebCore::FrameIdentifier(*frameIDNumber);
 }
 
 void InspectorPageAgent::frameDetached(LocalFrame& frame)
@@ -822,6 +901,12 @@ void InspectorPageAgent::defaultUserPreferencesDidChange()
     m_frontendDispatcher->defaultUserPreferencesDidChange(WTF::move(defaultUserPreferences));
 }
 
+void InspectorPageAgent::didNavigateWithinPage(LocalFrame& frame)
+{
+    String url = frame.document()->url().string();
+    m_frontendDispatcher->navigatedWithinDocument(frameId(&frame), url);
+}
+
 #if ENABLE(DARK_MODE_CSS)
 void InspectorPageAgent::defaultAppearanceDidChange()
 {
@@ -835,6 +920,9 @@ void InspectorPageAgent::didClearWindowObjectInWorld(LocalFrame& frame, DOMWrapp
         return;
 
     if (m_bootstrapScript.isEmpty())
+        return;
+
+    if (m_ignoreDidClearWindowObject)
         return;
 
     if (auto* pageRuntimeAgent = Ref { m_instrumentingAgents.get() }->enabledPageRuntimeAgent()) {
@@ -885,6 +973,51 @@ void InspectorPageAgent::didScroll()
 void InspectorPageAgent::didRecalculateStyle()
 {
     protect(overlay())->update();
+}
+
+void InspectorPageAgent::runOpenPanel(HTMLInputElement* element, bool* intercept)
+{
+    if (m_interceptFileChooserDialog) {
+        *intercept = true;
+    } else {
+        return;
+    }
+    Document& document = element->document();
+    auto* frame =  document.frame();
+    if (!frame)
+        return;
+
+    auto& globalObject = mainWorldGlobalObject(*frame);
+    auto injectedScript = m_injectedScriptManager.injectedScriptFor(&globalObject);
+    if (injectedScript.hasNoValue())
+        return;
+
+    auto object = injectedScript.wrapObject(InspectorDOMAgent::nodeAsScriptValue(globalObject, element), WTF::String());
+    if (!object)
+        return;
+
+    m_frontendDispatcher->fileChooserOpened(frameId(frame), object.releaseNonNull());
+}
+
+void InspectorPageAgent::frameAttached(LocalFrame& frame)
+{
+    String parentFrameId = frameId(dynamicDowncast<LocalFrame>(frame.tree().parent()));
+    m_frontendDispatcher->frameAttached(frameId(&frame), parentFrameId);
+}
+
+bool InspectorPageAgent::shouldBypassCSP()
+{
+    return m_bypassCSP;
+}
+
+void InspectorPageAgent::willCheckNavigationPolicy(LocalFrame& frame)
+{
+    m_frontendDispatcher->willCheckNavigationPolicy(frameId(&frame));
+}
+
+void InspectorPageAgent::didCheckNavigationPolicy(LocalFrame& frame, bool cancel)
+{
+    m_frontendDispatcher->didCheckNavigationPolicy(frameId(&frame), cancel);
 }
 
 Ref<Inspector::Protocol::Page::Frame> InspectorPageAgent::buildObjectForFrame(LocalFrame* frame)
@@ -1000,6 +1133,12 @@ void InspectorPageAgent::applyUserAgentOverride(String& userAgent)
         userAgent = m_userAgentOverride;
 }
 
+void InspectorPageAgent::applyPlatformOverride(String& platform)
+{
+    if (!m_platformOverride.isEmpty())
+        platform = m_platformOverride;
+}
+
 void InspectorPageAgent::applyEmulatedMedia(AtomString& media)
 {
     if (!m_emulatedMedia.isEmpty())
@@ -1026,11 +1165,16 @@ Inspector::Protocol::ErrorStringOr<String> InspectorPageAgent::snapshotNode(Insp
     return encodeDataURL(WTF::move(snapshot), "image/png"_s);
 }
 
-Inspector::Protocol::ErrorStringOr<String> InspectorPageAgent::snapshotRect(int x, int y, int width, int height, Inspector::Protocol::Page::CoordinateSystem coordinateSystem)
+Inspector::Protocol::ErrorStringOr<String> InspectorPageAgent::snapshotRect(int x, int y, int width, int height, Inspector::Protocol::Page::CoordinateSystem coordinateSystem, std::optional<bool>&& omitDeviceScaleFactor, std::optional<Inspector::Protocol::Page::ImageFormat>&& format, std::optional<int>&& quality)
 {
+    if (quality && (*quality < 0 || *quality > 100))
+        return makeUnexpected("Quality must be between 0 and 100"_s);
+
     SnapshotOptions options { { }, PixelFormat::BGRA8, ColorSpace::SRGB() };
     if (coordinateSystem == Inspector::Protocol::Page::CoordinateSystem::Viewport)
         options.flags.add(SnapshotFlags::InViewCoordinates);
+    if (omitDeviceScaleFactor.has_value() && *omitDeviceScaleFactor)
+        options.flags.add(SnapshotFlags::OmitDeviceScaleFactor);
 
     IntRect rectangle(x, y, width, height);
     RefPtr localMainFrame = m_inspectedPage->localMainFrame();
@@ -1040,8 +1184,66 @@ Inspector::Protocol::ErrorStringOr<String> InspectorPageAgent::snapshotRect(int 
 
     if (!snapshot)
         return makeUnexpected("Could not capture snapshot"_s);
-    return encodeDataURL(WTF::move(snapshot), "image/png"_s);
+
+    String mimeType;
+    std::optional<double> encodingQuality;
+    switch (format.value_or(Inspector::Protocol::Page::ImageFormat::Png)) {
+    case Inspector::Protocol::Page::ImageFormat::Png:
+        mimeType = "image/png"_s;
+        break;
+    case Inspector::Protocol::Page::ImageFormat::Jpeg:
+        mimeType = "image/jpeg"_s;
+        encodingQuality = quality.value_or(80) / 100.0;
+        break;
+    case Inspector::Protocol::Page::ImageFormat::Webp:
+        mimeType = "image/webp"_s;
+        // A quality of 1.0 (100) selects lossless WebP; default to it when omitted.
+        encodingQuality = quality.value_or(100) / 100.0;
+        break;
+    }
+    return encodeDataURL(WTF::move(snapshot), mimeType, encodingQuality);
 }
+
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::setForcedColors(std::optional<Inspector::Protocol::Page::ForcedColors>&& forcedColors)
+{
+    if (!forcedColors) {
+        m_inspectedPage->setUseForcedColorsOverride(std::nullopt);
+        return { };
+    }
+
+    switch (*forcedColors) {
+        case Inspector::Protocol::Page::ForcedColors::Active:
+            m_inspectedPage->setUseForcedColorsOverride(true);
+            return { };
+        case Inspector::Protocol::Page::ForcedColors::None:
+            m_inspectedPage->setUseForcedColorsOverride(false);
+            return { };
+    }
+
+    ASSERT_NOT_REACHED();
+    return { };
+}
+
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::setTimeZone(const String& timeZone)
+{
+    bool success = WTF::setTimeZoneOverride(timeZone);
+    if (!success)
+        return makeUnexpected(makeString("Invalid time zone "_s, timeZone));
+
+    // JSC caches time zone information process-wide, keyed on WTF::lastTimeZoneID().
+    // The cache is normally invalidated only by a system time zone change notification,
+    // so signal the change explicitly to force re-reading the override.
+    WTF::timeZoneDidChange();
+    return { };
+}
+
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::setTouchEmulationEnabled(bool enabled)
+{
+  setScreenHasTouchDeviceOverride(enabled);
+  m_inspectedPage->settings().setTouchEventDOMAttributesEnabled(enabled);
+  return { };
+}
+
 
 #if ENABLE(WEB_ARCHIVE) && USE(CF)
 Inspector::Protocol::ErrorStringOr<String> InspectorPageAgent::archive()
@@ -1059,7 +1261,6 @@ Inspector::Protocol::ErrorStringOr<String> InspectorPageAgent::archive()
 }
 #endif
 
-#if !PLATFORM(COCOA)
 Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::setScreenSizeOverride(std::optional<int>&& width, std::optional<int>&& height)
 {
     if (width.has_value() != height.has_value())
@@ -1077,6 +1278,86 @@ Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::setScreenSizeOverri
     localMainFrame->setOverrideScreenSize(FloatSize(width.value_or(0), height.value_or(0)));
     return { };
 }
-#endif
+
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::insertText(const String& text)
+{
+    UserGestureIndicator indicator { IsProcessingUserGesture::Yes };
+    RefPtr frame = m_inspectedPage->focusController().focusedOrMainFrame();
+    if (!frame)
+        return { };
+
+    if (frame->editor().hasComposition()) {
+        frame->editor().confirmComposition(text);
+    } else {
+        Document* focusedDocument = frame->document();
+        TypingCommand::insertText(*focusedDocument, text, nullptr, { });
+    }
+    return { };
+}
+
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::setInterceptFileChooserDialog(bool enabled)
+{
+    m_interceptFileChooserDialog = enabled;
+    return { };
+}
+
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::setDefaultBackgroundColorOverride(RefPtr<JSON::Object>&& color)
+{
+    auto* localFrame = dynamicDowncast<LocalFrame>(m_inspectedPage->mainFrame());
+    LocalFrameView* view = localFrame ? localFrame->view() : nullptr;
+    if (!view)
+        return makeUnexpected("Internal error: No frame view to set color two"_s);
+
+    if (!color) {
+        view->updateBackgroundRecursively(std::optional<Color>());
+        return { };
+    }
+
+    view->updateBackgroundRecursively(InspectorDOMAgent::parseColor(WTF::move(color)));
+    return { };
+}
+
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::createUserWorld(const String& name)
+{
+    if (createdUserWorlds().contains(name))
+        return makeUnexpected("World with the given name already exists"_s);
+
+    Ref<DOMWrapperWorld> world = ScriptController::createWorld(name, ScriptController::WorldType::User);
+    ensureUserWorldsExistInAllFrames({world.ptr()});
+    createdUserWorlds().set(name, WTF::move(world));
+    return { };
+}
+
+void InspectorPageAgent::ensureUserWorldsExistInAllFrames(const Vector<DOMWrapperWorld*>& worlds)
+{
+    for (Frame* frame = &m_inspectedPage->mainFrame(); frame; frame = frame->tree().traverseNext()) {
+        auto* localFrame = dynamicDowncast<LocalFrame>(frame);
+        if (!localFrame)
+            continue;
+        for (auto* world : worlds)
+            localFrame->windowProxy().jsWindowProxy(*world)->window();
+    }
+}
+
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::setBypassCSP(bool enabled)
+{
+    m_bypassCSP = enabled;
+    return { };
+}
+
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::crash()
+{
+    WTFCrash();
+    return { };
+}
+
+Inspector::Protocol::ErrorStringOr<void> InspectorPageAgent::updateScrollingState()
+{
+    auto* scrollingCoordinator = m_inspectedPage->scrollingCoordinator();
+    if (!scrollingCoordinator)
+        return {};
+    scrollingCoordinator->commitTreeStateIfNeeded();
+    return {};
+}
 
 } // namespace WebCore

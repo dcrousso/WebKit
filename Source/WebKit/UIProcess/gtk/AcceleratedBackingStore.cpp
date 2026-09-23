@@ -896,6 +896,7 @@ bool AcceleratedBackingStore::swapBuffersIfNeeded()
         m_committedBuffer->release();
 
     m_committedBuffer = WTF::move(m_pendingBuffer);
+    ++m_committedFrameGeneration;
     return true;
 }
 

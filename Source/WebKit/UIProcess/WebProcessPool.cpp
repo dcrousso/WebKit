@@ -452,9 +452,9 @@ void WebProcessPool::setAutomationClient(std::unique_ptr<API::AutomationClient>&
 void WebProcessPool::setOverrideLanguages(Vector<String>&& languages)
 {
     LOG_WITH_STREAM(Language, stream << "WebProcessPool is setting OverrideLanguages: " << languages);
-    WebKit::setOverrideLanguages(WTF::move(languages));
+    m_configuration->setOverrideLanguages(WTF::move(languages));
 
-    sendToAllProcesses(Messages::WebProcess::UserPreferredLanguagesChanged(overrideLanguages()));
+    sendToAllProcesses(Messages::WebProcess::UserPreferredLanguagesChanged(m_configuration->overrideLanguages()));
 
 #if ENABLE(GPU_PROCESS)
     if (RefPtr gpuProcess = GPUProcessProxy::singletonIfCreated())
@@ -462,9 +462,10 @@ void WebProcessPool::setOverrideLanguages(Vector<String>&& languages)
 #endif
 #if USE(SOUP)
     for (Ref networkProcess : NetworkProcessProxy::allNetworkProcesses())
-        networkProcess->send(Messages::NetworkProcess::UserPreferredLanguagesChanged(overrideLanguages()), 0);
+        networkProcess->send(Messages::NetworkProcess::UserPreferredLanguagesChanged(m_configuration->overrideLanguages()), 0);
 #endif
 }
+/* end playwright revert fb205fb */
 
 void WebProcessPool::fullKeyboardAccessModeChanged(bool fullKeyboardAccessEnabled)
 {
@@ -1021,7 +1022,7 @@ void WebProcessPool::initializeNewWebProcess(WebProcessProxy& process, WebsiteDa
 #endif
 
     parameters.cacheModel = LegacyGlobalSettings::singleton().cacheModel();
-    parameters.overrideLanguages = overrideLanguages();
+    parameters.overrideLanguages = configuration().overrideLanguages(); /* playwright revert fb205fb */
     LOG_WITH_STREAM(Language, stream << "WebProcessPool is initializing a new web process with overrideLanguages: " << parameters.overrideLanguages);
 
     parameters.urlSchemesRegisteredAsSecure = copyToVector(LegacyGlobalSettings::singleton().schemesToRegisterAsSecure());
@@ -1383,6 +1384,12 @@ Ref<WebPageProxy> WebProcessPool::createWebPage(PageClient& pageClient, Ref<API:
     auto enhancedSecurity = (protect(pageConfiguration->preferences())->forceEnhancedSecurity() || pageConfiguration->isEnhancedSecurityEnabled() || useEnhancedSecurityFallback) ? EnhancedSecurity::EnabledPolicy : EnhancedSecurity::Disabled;
 
     RefPtr relatedPage = pageConfiguration->relatedPage();
+
+    // Fix WPE/GTK crashes after 310806@main. upstream-status (pending). See issue https://github.com/microsoft/playwright-browsers/issues/2171
+    // Ensure popups inherit the StorageBlockingPolicy of the parent so they stay compatible for same-process popup creation.
+    if (relatedPage)
+        pageConfiguration->preferences().setStorageBlockingPolicy(relatedPage->preferences().storageBlockingPolicy());
+
     bool siteIsolationEnabled = protect(pageConfiguration->preferences())->siteIsolationEnabled();
     if (siteIsolationEnabled) {
         Ref<WebPreferences> preferences = pageConfiguration->preferences();

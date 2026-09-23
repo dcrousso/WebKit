@@ -363,6 +363,13 @@
                 { "name": "bandwidth", "type": "integer", "optional": true, "description": "Limits the bytes per second of requests if positive. Removes any limits if zero or not provided." },
                 { "name": "latency", "type": "integer", "optional": true, "description": "Adds a round-trip delay (in milliseconds) to each request if positive. Removes any delay if zero or not provided." }
             ]
+        },
+        {
+            "name": "setEmulateOfflineState",
+            "description": "Emulate offline state overriding the actual state.",
+            "parameters": [
+                { "name": "offline", "type": "boolean", "description": "True to emulate offline." }
+            ]
         }
     ],
     "events": [

@@ -103,6 +103,8 @@
 
 #if PLATFORM(COCOA)
 #include <wtf/FileSystem.h>
+#include "NetworkDataTaskCocoa.h"
+#include "NetworkSessionCocoa.h"
 #include <wtf/OSObjectPtr.h>
 #include <wtf/spi/darwin/SandboxSPI.h>
 #endif
@@ -1367,6 +1369,14 @@ void NetworkConnectionToWebProcess::clearPageSpecificData(PageIdentifier pageID)
 {
     if (CheckedPtr session = networkSession())
         protect(session->networkLoadScheduler())->clearPageData(pageID);
+}
+
+void NetworkConnectionToWebProcess::setCookieFromResponse(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, const String& setCookieValue)
+{
+    auto* networkStorageSession = storageSession();
+    if (!networkStorageSession)
+        return;
+    networkStorageSession->setCookiesFromResponse(firstParty, sameSiteInfo, url, setCookieValue);
 }
 
 void NetworkConnectionToWebProcess::removeStorageAccessForFrame(FrameIdentifier frameID, WebPageProxyIdentifier webPageProxyID)

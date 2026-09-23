@@ -78,6 +78,7 @@ ResourceResponseBase::ResourceResponseBase(std::optional<ResourceResponseData>&&
     , m_httpStatusText(data ? WTF::move(data->httpStatusText) : String { })
     , m_httpVersion(data ? WTF::move(data->httpVersion) : String { })
     , m_httpHeaderFields(data ? WTF::move(data->httpHeaderFields) : HTTPHeaderMap { })
+    , m_httpRequestHeaderFields(data ? data->httpRequestHeaderFields : HTTPHeaderMap { })
     , m_networkLoadMetrics(data && data->networkLoadMetrics ? Box<NetworkLoadMetrics>::create(WTF::move(*data->networkLoadMetrics)) : Box<NetworkLoadMetrics> { })
     , m_certificateInfo(data ? WTF::move(data->certificateInfo) : std::nullopt)
     , m_httpStatusCode(data ? data->httpStatusCode : 0)
@@ -912,6 +913,7 @@ std::optional<ResourceResponseData> ResourceResponseBase::getResponseData() cons
         String { m_httpStatusText },
         String { m_httpVersion },
         HTTPHeaderMap { m_httpHeaderFields },
+        HTTPHeaderMap { m_httpRequestHeaderFields },
         m_networkLoadMetrics ? std::optional(*m_networkLoadMetrics) : std::nullopt,
         m_source,
         m_type,
@@ -939,6 +941,7 @@ void Coder<WebCore::ResourceResponseData>::encodeForPersistence(Encoder& encoder
     encoder << data.httpStatusText;
     encoder << data.httpVersion;
     encoder << data.httpHeaderFields;
+    encoder << data.httpRequestHeaderFields;
     encoder << data.httpStatusCode;
     encoder << data.certificateInfo;
     encoder << data.source;
@@ -987,6 +990,11 @@ std::optional<WebCore::ResourceResponseData> Coder<WebCore::ResourceResponseData
     std::optional<WebCore::HTTPHeaderMap> httpHeaderFields;
     decoder >> httpHeaderFields;
     if (!httpHeaderFields)
+        return std::nullopt;
+
+    std::optional<WebCore::HTTPHeaderMap> httpRequestHeaderFields;
+    decoder >> httpRequestHeaderFields;
+    if (!httpRequestHeaderFields)
         return std::nullopt;
 
     std::optional<short> httpStatusCode;
@@ -1053,6 +1061,7 @@ std::optional<WebCore::ResourceResponseData> Coder<WebCore::ResourceResponseData
         WTF::move(*httpStatusText),
         WTF::move(*httpVersion),
         WTF::move(*httpHeaderFields),
+        WTF::move(*httpRequestHeaderFields),
         std::nullopt,
         *source,
         *type,

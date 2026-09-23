@@ -20,8 +20,8 @@
 #ifndef PlatformTouchEvent_h
 #define PlatformTouchEvent_h
 
-#include "PlatformEvent.h"
-#include "PlatformTouchPoint.h"
+#include <WebCore/PlatformEvent.h>
+#include <WebCore/PlatformTouchPoint.h>
 #include <wtf/Vector.h>
 
 #if ENABLE(TOUCH_EVENTS)
@@ -42,7 +42,7 @@ public:
 
     const Vector<PlatformTouchEvent>& predictedEvents() const LIFETIME_BOUND { return m_predictedEvents; }
 
-#if PLATFORM(WPE)
+#if !ENABLE(IOS_TOUCH_EVENTS)
     // FIXME: since WPE currently does not send touch stationary events, we need to be able to set
     // TouchCancelled touchPoints subsequently
     void setTouchPoints(Vector<PlatformTouchPoint>& touchPoints) { m_touchPoints = touchPoints; }

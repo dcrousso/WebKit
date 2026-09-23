@@ -28,11 +28,11 @@
 #if PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
 
 #include "MessageReceiver.h"
+#include "PlaybackSessionManagerProxy.h"
 #include <WebCore/PageIdentifier.h>
 
 namespace WebKit {
 
-class PlaybackSessionManagerProxy;
 class WebProcessProxy;
 
 class RemotePagePlaybackSessionManagerProxy : public IPC::MessageReceiver, public RefCounted<RemotePagePlaybackSessionManagerProxy> {

@@ -1275,6 +1275,10 @@ JS_BINDING_IDLS := \
     $(WebCore)/dom/SubscriberCallback.idl \
     $(WebCore)/dom/SubscriptionObserver.idl \
     $(WebCore)/dom/SubscriptionObserverCallback.idl \
+    $(WebCore)/dom/Document+Touch.idl \
+    $(WebCore)/dom/Touch.idl \
+    $(WebCore)/dom/TouchEvent.idl \
+    $(WebCore)/dom/TouchList.idl \
     $(WebCore)/dom/Text.idl \
     $(WebCore)/dom/TextDecoder.idl \
     $(WebCore)/dom/TextDecoderStream.idl \
@@ -1890,9 +1894,6 @@ JS_BINDING_IDLS := \
 ADDITIONAL_BINDING_IDLS = \
     DocumentTouch.idl \
     GestureEvent.idl \
-    Touch.idl \
-    TouchEvent.idl \
-    TouchList.idl \
 #
 
 vpath %.in $(WEBKITADDITIONS_HEADER_SEARCH_PATHS)

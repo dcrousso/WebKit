@@ -264,6 +264,11 @@ protected:
     String m_httpStatusText;
     String m_httpVersion;
     HTTPHeaderMap m_httpHeaderFields;
+
+public:
+    HTTPHeaderMap m_httpRequestHeaderFields;
+
+protected:
     Box<NetworkLoadMetrics> m_networkLoadMetrics;
 
     mutable std::optional<CertificateInfo> m_certificateInfo;
@@ -307,7 +312,7 @@ struct ResourceResponseData {
     ResourceResponseData() = default;
     ResourceResponseData(ResourceResponseData&&) = default;
     ResourceResponseData& operator=(ResourceResponseData&&) = default;
-    ResourceResponseData(URL&& url, String&& mimeType, long long expectedContentLength, String&& textEncodingName, int httpStatusCode, String&& httpStatusText, String&& httpVersion, HTTPHeaderMap&& httpHeaderFields, std::optional<NetworkLoadMetrics>&& networkLoadMetrics, ResourceResponseSource source, ResourceResponseBaseType type, ResourceResponseBaseTainting tainting, bool isRedirected, UsedLegacyTLS usedLegacyTLS, WasPrivateRelayed wasPrivateRelayed, String&& proxyName, bool isRangeRequested, std::optional<CertificateInfo>&& certificateInfo, IPAddressSpace ipAddressSpace)
+    ResourceResponseData(URL&& url, String&& mimeType, long long expectedContentLength, String&& textEncodingName, int httpStatusCode, String&& httpStatusText, String&& httpVersion, HTTPHeaderMap&& httpHeaderFields, HTTPHeaderMap&& httpRequestHeaderFields, std::optional<NetworkLoadMetrics>&& networkLoadMetrics, ResourceResponseSource source, ResourceResponseBaseType type, ResourceResponseBaseTainting tainting, bool isRedirected, UsedLegacyTLS usedLegacyTLS, WasPrivateRelayed wasPrivateRelayed, String&& proxyName, bool isRangeRequested, std::optional<CertificateInfo>&& certificateInfo, IPAddressSpace ipAddressSpace)
         : url(WTF::move(url))
         , mimeType(WTF::move(mimeType))
         , expectedContentLength(expectedContentLength)
@@ -316,6 +321,7 @@ struct ResourceResponseData {
         , httpStatusText(WTF::move(httpStatusText))
         , httpVersion(WTF::move(httpVersion))
         , httpHeaderFields(WTF::move(httpHeaderFields))
+        , httpRequestHeaderFields(WTF::move(httpRequestHeaderFields))
         , networkLoadMetrics(WTF::move(networkLoadMetrics))
         , source(source)
         , type(type)
@@ -340,6 +346,7 @@ struct ResourceResponseData {
     String httpStatusText;
     String httpVersion;
     HTTPHeaderMap httpHeaderFields;
+    HTTPHeaderMap httpRequestHeaderFields;
     std::optional<NetworkLoadMetrics> networkLoadMetrics;
     ResourceResponseBase::Source source;
     ResourceResponseBase::Type type;

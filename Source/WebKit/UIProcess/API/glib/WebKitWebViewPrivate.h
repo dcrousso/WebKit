@@ -70,6 +70,7 @@ void webkitWebViewRunJavaScriptAlert(WebKitWebView*, const UTF8CString& message,
 void webkitWebViewRunJavaScriptConfirm(WebKitWebView*, const UTF8CString& message, Function<void(bool)>&& completionHandler);
 void webkitWebViewRunJavaScriptPrompt(WebKitWebView*, const UTF8CString& message, const UTF8CString& defaultText, Function<void(const String&)>&& completionHandler);
 void webkitWebViewRunJavaScriptBeforeUnloadConfirm(WebKitWebView*, const UTF8CString& message, Function<void(bool)>&& completionHandler);
+void webkitWebViewHandleJavaScriptDialog(WebKitWebView*, bool accept, const String& value);
 bool webkitWebViewIsShowingScriptDialog(WebKitWebView*);
 bool webkitWebViewIsScriptDialogRunning(WebKitWebView*, WebKitScriptDialog*);
 String webkitWebViewGetCurrentScriptDialogMessage(WebKitWebView*);

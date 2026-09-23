@@ -90,6 +90,20 @@ Protocol::ErrorStringOr<void> InspectorTargetAgent::sendMessageToTarget(const St
     return { };
 }
 
+Protocol::ErrorStringOr<void> InspectorTargetAgent::activate(const String& targetId)
+{
+    InspectorTarget* target = m_targets.get(targetId);
+    if (!target)
+        return makeUnexpected("Missing target for given targetId"_s);
+
+    String errorString;
+    target->activate(errorString);
+    if (!errorString.isEmpty())
+        return makeUnexpected(errorString);
+
+    return { };
+}
+
 void InspectorTargetAgent::sendMessageFromTargetToFrontend(const String& targetId, const String& message)
 {
     m_frontendDispatcher->dispatchMessageFromTarget(targetId, message);
@@ -147,7 +161,17 @@ void InspectorTargetAgent::targetDestroyed(InspectorTarget& target)
     if (!m_isConnected)
         return;
 
-    m_frontendDispatcher->targetDestroyed(target.identifier());
+    m_frontendDispatcher->targetDestroyed(target.identifier(), false);
+}
+
+void InspectorTargetAgent::targetCrashed(InspectorTarget& target)
+{
+    m_targets.remove(target.identifier());
+
+    if (!m_isConnected)
+        return;
+
+    m_frontendDispatcher->targetDestroyed(target.identifier(), true);
 }
 
 void InspectorTargetAgent::didCommitProvisionalTarget(const String& oldTargetID, const String& committedTargetID)

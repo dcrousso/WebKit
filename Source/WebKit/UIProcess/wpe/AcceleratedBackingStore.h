@@ -73,7 +73,7 @@ public:
 
     void updateSurfaceID(uint64_t);
 
-    std::expected<Ref<ViewSnapshot>, String> takeSnapshot(std::optional<WebCore::IntRect>&&);
+    std::expected<Ref<ViewSnapshot>, String> takeSnapshot(std::optional<WebCore::IntRect>&&, bool nominalResolution);
 
     RendererBufferDescription bufferDescription() const;
 

@@ -85,6 +85,8 @@ messages -> NetworkConnectionToWebProcess WantsDispatchMessage {
 
     ClearPageSpecificData(WebCore::PageIdentifier pageID);
 
+    SetCookieFromResponse(URL firstParty, struct WebCore::SameSiteInfo sameSiteInfo, URL url, String setCookieValue);
+
     [EnabledBy=StorageAccessAPIEnabled] RemoveStorageAccessForFrame(WebCore::FrameIdentifier frameID, WebKit::WebPageProxyIdentifier webPageProxyID);
     LogUserInteraction(WebCore::RegistrableDomain domain)
     ResourceLoadStatisticsUpdated(Vector<WebCore::ResourceLoadStatistics> statistics) -> ()

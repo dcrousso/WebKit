@@ -35,6 +35,7 @@
 #import "WebViewImpl.h"
 #import <WebCore/NativeImage.h>
 #import <WebCore/TextAnimationTypes.h>
+#import <WebKit/WKWebView.h>
 #import <pal/cocoa/WritingToolsUISoftLink.h>
 
 @interface WKTextAnimationTypeEffectData : NSObject

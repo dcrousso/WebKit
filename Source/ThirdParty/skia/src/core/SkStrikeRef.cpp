@@ -33,11 +33,6 @@ SkStrikeRef& SkStrikeRef::operator=(const SkStrikeRef&) = default;
 SkStrikeRef::SkStrikeRef(SkStrikeRef&&) = default;
 SkStrikeRef& SkStrikeRef::operator=(SkStrikeRef&&) = default;
 
-SkStrikeRef::SkStrikeRef(sk_sp<SkStrike> strike,
-                         SkScalar strikeToSourceScale)
-    : fStrike(std::move(strike))
-    , fStrikeToSourceScale(strikeToSourceScale) {}
-
 void SkStrikeRef::getWidths(SkSpan<const SkGlyphID> glyphs, SkSpan<SkScalar> widths) const {
     this->getWidthsBounds(glyphs, widths, {});
 }

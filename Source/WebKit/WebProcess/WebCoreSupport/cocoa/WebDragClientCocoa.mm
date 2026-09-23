@@ -131,7 +131,8 @@ static RefPtr<WebCore::CachedImage> cachedImage(Element& element)
 
 void WebDragClient::declareAndWriteDragImage(const String& pasteboardName, Element& element, const URL& url, const String& label, LocalFrame*)
 {
-    ASSERT(pasteboardName == String(NSPasteboardNameDrag));
+    if (pasteboardName != String(NSPasteboardNameDrag))
+        return;
 
     RefPtr image = cachedImage(element);
 

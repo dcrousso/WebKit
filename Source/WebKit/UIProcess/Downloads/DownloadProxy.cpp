@@ -41,8 +41,10 @@
 #include <WebCore/MIMETypeRegistry.h>
 #include <WebCore/ResourceResponseBase.h>
 #include <wtf/FileSystem.h>
+#include <wtf/NeverDestroyed.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
+#include <wtf/UUID.h>
 
 #if PLATFORM(MAC)
 #include <pal/spi/mac/QuarantineSPI.h>
@@ -66,7 +68,10 @@ DownloadProxy::DownloadProxy(DownloadProxyMap& downloadProxyMap, WebsiteDataStor
 #if HAVE(MODERN_DOWNLOADPROGRESS)
     , m_assertion(ProcessAssertion::create(getCurrentProcessID(), "WebKit DownloadProxy DecideDestination"_s, ProcessAssertionType::FinishTaskInterruptable))
 #endif
+    , m_uuid(createVersion4UUIDString())
 {
+    if (auto* instrumentation = m_dataStore->downloadInstrumentation())
+      instrumentation->downloadCreated(m_uuid, m_request, m_frameInfo->frameInfoData(), originatingPage, this);
 }
 
 DownloadProxy::~DownloadProxy()
@@ -86,13 +91,16 @@ void DownloadProxy::cancel(CompletionHandler<void(API::Data*)>&& completionHandl
 {
     m_downloadIsCancelled = true;
     if (m_dataStore) {
-        protect(protect(m_dataStore)->networkProcess())->sendWithAsyncReply(Messages::NetworkProcess::CancelDownload(m_downloadID), [weakThis = WeakPtr { *this }, completionHandler = WTF::move(completionHandler)] (std::span<const uint8_t> resumeData) mutable {
+        auto* instrumentation = m_dataStore->downloadInstrumentation();
+        protect(protect(m_dataStore)->networkProcess())->sendWithAsyncReply(Messages::NetworkProcess::CancelDownload(m_downloadID), [weakThis = WeakPtr { *this }, completionHandler = WTF::move(completionHandler), instrumentation] (std::span<const uint8_t> resumeData) mutable {
             RefPtr protectedThis = weakThis;
             if (!protectedThis)
                 return completionHandler(nullptr);
             RefPtr legacyResumeData = createData(resumeData);
             protectedThis->m_legacyResumeData = legacyResumeData;
             completionHandler(legacyResumeData);
+            if (instrumentation)
+                instrumentation->downloadFinished(protectedThis->m_uuid, "canceled"_s);
             if (RefPtr downloadProxyMap = protectedThis->m_downloadProxyMap)
                 downloadProxyMap->downloadFinished(*protectedThis);
         });
@@ -183,6 +191,35 @@ void DownloadProxy::decideDestinationWithSuggestedFilename(const WebCore::Resour
     else
         suggestedFilename = MIMETypeRegistry::appendFileExtensionIfNecessary(suggestedFilename, response.mimeType());
 
+    if (auto* instrumentation = m_dataStore->downloadInstrumentation())
+      instrumentation->downloadFilenameSuggested(m_uuid, suggestedFilename);
+
+    if (m_dataStore->allowDownloadForAutomation()) {
+        SandboxExtension::Handle sandboxExtensionHandle;
+        String destination;
+        if (*m_dataStore->allowDownloadForAutomation()) {
+            auto downloadPath = m_dataStore->downloadPathForAutomation();
+            FileSystem::makeAllDirectories(downloadPath);
+            destination = FileSystem::pathByAppendingComponent(downloadPath, m_uuid);
+            if (auto handle = SandboxExtension::createHandle(destination, SandboxExtension::Type::ReadWrite))
+                sandboxExtensionHandle = WTF::move(*handle);
+        }
+        m_client->decidePlaceholderPolicy(*this, [completionHandler = WTF::move(completionHandler), destination = WTF::move(destination), sandboxExtensionHandle = WTF::move(sandboxExtensionHandle)] (WebKit::UseDownloadPlaceholder usePlaceholder, const URL& url) mutable {
+            SandboxExtension::Handle placeHolderSandboxExtensionHandle;
+            Vector<uint8_t> bookmarkData;
+            Vector<uint8_t> activityTokenData;
+#if HAVE(MODERN_DOWNLOADPROGRESS)
+            bookmarkData = bookmarkDataForURL(url);
+            activityTokenData = activityAccessToken();
+#else
+            if (auto handle = SandboxExtension::createHandle(url.fileSystemPath(), SandboxExtension::Type::ReadWrite))
+                placeHolderSandboxExtensionHandle = WTF::move(*handle);
+#endif
+            completionHandler(destination, WTF::move(sandboxExtensionHandle), AllowOverwrite::Yes, WebKit::UseDownloadPlaceholder::No, url, WTF::move(placeHolderSandboxExtensionHandle), bookmarkData.span(), activityTokenData.span());
+        });
+        return;
+    }
+
     protect(client())->decideDestinationWithSuggestedFilename(*this, response, ResourceResponseBase::sanitizeSuggestedFilename(suggestedFilename), [this, protectedThis = Ref { *this }, completionHandler = WTF::move(completionHandler)] (AllowOverwrite allowOverwrite, String destination) mutable {
         SandboxExtension::Handle sandboxExtensionHandle;
         if (!destination.isNull()) {
@@ -247,6 +284,8 @@ void DownloadProxy::didFinish()
     protect(client())->didFinish(*this);
     if (m_downloadIsCancelled)
         return;
+    if (auto* instrumentation = m_dataStore->downloadInstrumentation())
+      instrumentation->downloadFinished(m_uuid, String());
 
     // This can cause the DownloadProxy object to be deleted.
     if (RefPtr downloadProxyMap = m_downloadProxyMap)
@@ -262,6 +301,8 @@ void DownloadProxy::didFail(const ResourceError& error, std::span<const uint8_t>
     m_legacyResumeData = legacyResumeData;
 
     protect(client())->didFail(*this, error, legacyResumeData);
+    if (auto* instrumentation = m_dataStore->downloadInstrumentation())
+      instrumentation->downloadFinished(m_uuid, error.localizedDescription());
 
     // This can cause the DownloadProxy object to be deleted.
     if (RefPtr downloadProxyMap = m_downloadProxyMap)

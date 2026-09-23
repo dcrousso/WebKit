@@ -44,7 +44,10 @@
 #endif
 
 WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_BEGIN
+#include <skia/core/SkBitmap.h>
+#include <skia/core/SkCanvas.h>
 #include <skia/core/SkColorSpace.h>
+#include <skia/core/SkImage.h>
 #include <skia/core/SkPixmap.h>
 #include <skia/core/SkStream.h>
 #include <skia/encode/SkPngEncoder.h>
@@ -229,7 +232,7 @@ static std::expected<SkImageInfo, String> getImageInfoFromBuffer(const  GRefPtr<
     return makeUnexpected("Failed to extract snapshot pixel information"_s);
 }
 
-static std::expected<Ref<ViewSnapshot>, String> saveBufferSnapshot(const GRefPtr<WPEBuffer>& buffer, std::optional<WebCore::IntRect>&& clipRect)
+static std::expected<Ref<ViewSnapshot>, String> saveBufferSnapshot(const GRefPtr<WPEBuffer>& buffer, std::optional<WebCore::IntRect>&& clipRect, bool nominalResolution, WebPageProxy& page)
 {
     GUniqueOutPtr<GError> error;
     GBytes* pixels = wpe_buffer_import_to_pixels(buffer.get(), &error.outPtr());
@@ -239,6 +242,9 @@ static std::expected<Ref<ViewSnapshot>, String> saveBufferSnapshot(const GRefPtr
         return makeUnexpected("Failed to read current WPEBuffer for snapshot"_s);
     }
 
+    // wpe_buffer_import_to_pixels() returns memory owned by the WPEBuffer (transfer none), which
+    // may be recycled once a newer frame is committed. Copy it into a GBytes owned by the SkImage
+    // so snapshots (including per-frame screencast captures) can safely outlive the buffer.
     gsize pixelsDataSize;
     const auto* pixelsData = g_bytes_get_data(pixels, &pixelsDataSize);
     GRefPtr<GBytes> bytes = adoptGRef(g_bytes_new(pixelsData, pixelsDataSize));
@@ -248,32 +254,47 @@ static std::expected<Ref<ViewSnapshot>, String> saveBufferSnapshot(const GRefPtr
         return makeUnexpected(info.error());
 
     SkPixmap pixmap(info.value(), g_bytes_get_data(bytes.get(), nullptr), info->minRowBytes());
-
-    if (clipRect) {
-        SkIRect clippedRect = SkIRect::MakeXYWH(clipRect->x(), clipRect->y(), clipRect->width(), clipRect->height());
-        SkImageInfo clippedInfo = info->makeWH(clipRect->width(), clipRect->height());
-        SkPixmap clippedPixmap(info.value(), nullptr, clippedInfo.minRowBytes());
-        if (!pixmap.extractSubset(&clippedPixmap, clippedRect))
-            return makeUnexpected("Failed to extract clipped snapshot"_s);
-        pixmap = clippedPixmap;
-    }
-
-    auto image = SkImages::RasterFromPixmap(pixmap, [](const void*, void* context) {
+    sk_sp<SkImage> fullScreenshot = SkImages::RasterFromPixmap(pixmap, [](const void*, void* context) {
         g_bytes_unref(static_cast<GBytes*>(context));
     }, bytes.leakRef());
-
-    if (!image)
+    if (!fullScreenshot)
         return makeUnexpected("Failed to create snapshot image"_s);
 
-    return { ViewSnapshot::create(WTF::move(image)) };
+    float deviceScale = page.deviceScaleFactor();
+    if (!clipRect && (!nominalResolution || deviceScale == 1))
+        return { ViewSnapshot::create(WTF::move(fullScreenshot)) };
+
+    WebCore::IntSize size = clipRect ? clipRect->size() : page.viewSize();
+    if (!nominalResolution) {
+        size.scale(deviceScale);
+        if (clipRect)
+            clipRect->scale(deviceScale);
+    }
+
+    SkBitmap bitmap;
+    bitmap.allocPixels(SkImageInfo::Make(size.width(), size.height(), kN32_SkColorType, kPremul_SkAlphaType));
+    SkCanvas canvas(bitmap);
+    if (clipRect) {
+        canvas.translate(-clipRect->x(), -clipRect->y());
+        SkRect rect = SkRect::MakeXYWH(clipRect->x(), clipRect->y(), clipRect->width(), clipRect->height());
+        canvas.clipRect(rect);
+    }
+    if (nominalResolution)
+        canvas.scale(1/deviceScale, 1/deviceScale);
+    canvas.drawImage(fullScreenshot, 0, 0);
+    return { ViewSnapshot::create(bitmap.asImage()) };
 }
 
-std::expected<Ref<ViewSnapshot>, String> AcceleratedBackingStore::takeSnapshot(std::optional<WebCore::IntRect>&& clipRect)
+std::expected<Ref<ViewSnapshot>, String> AcceleratedBackingStore::takeSnapshot(std::optional<WebCore::IntRect>&& clipRect, bool nominalResolution)
 {
     if (!m_committedBuffer && !m_pendingBuffer) [[unlikely]]
         return makeUnexpected("No buffer to create snapshot from"_s);
 
-    return saveBufferSnapshot(m_committedBuffer ? m_committedBuffer : m_pendingBuffer, WTF::move(clipRect));
+    RefPtr page = m_webPage.get();
+    if (!page)
+        return makeUnexpected("No page to create snapshot from"_s);
+
+    return saveBufferSnapshot(m_committedBuffer ? m_committedBuffer : m_pendingBuffer, WTF::move(clipRect), nominalResolution, *page);
 }
 
 void AcceleratedBackingStore::renderPendingBuffer()

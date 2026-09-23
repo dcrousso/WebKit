@@ -127,6 +127,8 @@ static OptionSet<AvailableInputDevices> availableInputDevices()
             return toAvailableInputDevices(gdk_seat_get_capabilities(seat));
     }
 #endif
+    if (!WebCore::screenHasTouchDeviceOverride() || !WebCore::screenHasTouchDeviceOverride().value())
+        return AvailableInputDevices::Mouse;
 #if ENABLE(TOUCH_EVENTS)
     return AvailableInputDevices::Touchscreen;
 #else

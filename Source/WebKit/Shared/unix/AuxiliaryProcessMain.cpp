@@ -51,6 +51,15 @@ __attribute__((weak)) extern "C" int __llvm_profile_dump(void);
 
 namespace WebKit {
 
+static bool hasArgument(ASCIILiteral argument, std::span<char*> argv)
+{
+    for (auto& arg : argv) {
+        if (CStringView::unsafeFromUTF8(arg) == argument)
+            return true;
+    }
+    return false;
+}
+
 AuxiliaryProcessMainCommon::AuxiliaryProcessMainCommon()
 {
 #if ENABLE(BREAKPAD)
@@ -91,6 +100,10 @@ bool AuxiliaryProcessMainCommon::parseCommandLine(int argc, char** argv)
     }
 #endif
 
+// Playwright begin
+    if (hasArgument("--enable-shared-array-buffer"_s, argvSpan))
+        m_parameters.shouldEnableSharedArrayBuffer = true;
+// Playwright end
     return true;
 }
 

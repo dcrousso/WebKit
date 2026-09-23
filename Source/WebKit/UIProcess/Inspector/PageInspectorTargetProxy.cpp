@@ -59,6 +59,11 @@ std::unique_ptr<PageInspectorTargetProxy> PageInspectorTargetProxy::create(Provi
     return target;
 }
 
+std::unique_ptr<PageInspectorTargetProxy> PageInspectorTargetProxy::create(ProvisionalPageProxy& provisionalPage, const String& targetId)
+{
+    return PageInspectorTargetProxy::create(provisionalPage, targetId, Inspector::InspectorTargetType::Page);
+}
+
 PageInspectorTargetProxy::PageInspectorTargetProxy(WebPageProxy& page, const String& targetId, Inspector::InspectorTargetType type)
     : InspectorTargetProxy(targetId, type)
     , m_page(page)
@@ -107,6 +112,20 @@ void PageInspectorTargetProxy::sendMessageToTargetBackend(const String& message)
 void PageInspectorTargetProxy::didCommitProvisionalTarget()
 {
     m_provisionalPage = nullptr;
+}
+
+void PageInspectorTargetProxy::willResume()
+{
+    if (m_page->hasRunningProcess())
+        m_page->legacyMainFrameProcess().send(Messages::WebPage::ResumeInspectorIfPausedInNewWindow(), m_page->webPageIDInMainFrameProcess());
+}
+
+void PageInspectorTargetProxy::activate(String& error)
+{
+    if (type() != Inspector::InspectorTargetType::Page)
+        return InspectorTarget::activate(error);
+
+    platformActivate(error);
 }
 
 bool PageInspectorTargetProxy::isProvisional() const

@@ -33,10 +33,9 @@
 #import <AppKit/NSSpellChecker.h>
 #import <WebCore/AlternativeTextClient.h>
 #import <wtf/RetainPtr.h>
+#import "WebViewImpl.h"
 
 namespace WebKit {
-
-class WebViewImpl;
 
 class CorrectionPanel {
 public:
