@@ -216,6 +216,13 @@
             ]
         },
         {
+            "name": "canvasNameChanged",
+            "parameters": [
+                { "name": "canvasId", "$ref": "CanvasId" },
+                { "name": "name", "type": "string" }
+            ]
+        },
+        {
             "name": "canvasSizeChanged",
             "parameters": [
                 { "name": "canvasId", "$ref": "CanvasId", "description": "Identifier of canvas that changed." },
@@ -291,6 +298,13 @@
             "name": "programDeleted",
             "parameters": [
                 { "name": "programId", "$ref": "ProgramId" }
+            ]
+        },
+        {
+            "name": "programNameChanged",
+            "parameters": [
+                { "name": "programId", "$ref": "ProgramId" },
+                { "name": "name", "type": "string" }
             ]
         }
     ]

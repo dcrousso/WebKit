@@ -118,12 +118,15 @@ public:
 #endif // ENABLE(WEBGL)
     void didCreateWebGPUDevice(GPUDevice&);
     void willDestroyWebGPUDevice(GPUDevice&);
+    void didChangeWebGPUDeviceLabel(GPUDevice&);
     virtual void didChangeGPUDeviceClientNodes(GPUDevice&);
     void didChangeWebGPUMemory(GPUDevice&);
     void didCreateWebGPUComputePipeline(GPUDevice&, GPUComputePipeline&);
     void willDestroyWebGPUComputePipeline(GPUComputePipeline&);
+    void didChangeWebGPUComputePipelineLabel(GPUComputePipeline&);
     void didCreateWebGPURenderPipeline(GPUDevice&, GPURenderPipeline&);
     void willDestroyWebGPURenderPipeline(GPURenderPipeline&);
+    void didChangeWebGPURenderPipelineLabel(GPURenderPipeline&);
     bool isWebGPURenderPipelineDisabled(GPURenderPipeline&);
     void didFinishRecordingCanvasFrame(GPUDevice&, bool forceDispatch = false);
     RefPtr<WebGPU::RenderPipeline> renderPipelineForWebGPUHighlighting(GPURenderPipeline&, unsigned canvasColorAttachmentMask);

@@ -1383,6 +1383,12 @@ void InspectorInstrumentation::willDestroyWebGPUDeviceImpl(InstrumentingAgents& 
         canvasAgent->willDestroyWebGPUDevice(device);
 }
 
+void InspectorInstrumentation::didChangeWebGPUDeviceLabelImpl(InstrumentingAgents& instrumentingAgents, GPUDevice& device)
+{
+    if (CheckedPtr canvasAgent = instrumentingAgents.enabledCanvasAgent())
+        canvasAgent->didChangeWebGPUDeviceLabel(device);
+}
+
 void InspectorInstrumentation::didChangeGPUDeviceClientNodesImpl(InstrumentingAgents& instrumentingAgents, GPUDevice& device)
 {
     if (CheckedPtr canvasAgent = instrumentingAgents.enabledCanvasAgent())
@@ -1407,6 +1413,12 @@ void InspectorInstrumentation::willDestroyWebGPUComputePipelineImpl(Instrumentin
         canvasAgent->willDestroyWebGPUComputePipeline(pipeline);
 }
 
+void InspectorInstrumentation::didChangeWebGPUComputePipelineLabelImpl(InstrumentingAgents& instrumentingAgents, GPUComputePipeline& pipeline)
+{
+    if (CheckedPtr canvasAgent = instrumentingAgents.enabledCanvasAgent())
+        canvasAgent->didChangeWebGPUComputePipelineLabel(pipeline);
+}
+
 void InspectorInstrumentation::didCreateWebGPURenderPipelineImpl(InstrumentingAgents& instrumentingAgents, GPUDevice& device, GPURenderPipeline& pipeline)
 {
     if (CheckedPtr canvasAgent = instrumentingAgents.enabledCanvasAgent())
@@ -1417,6 +1429,12 @@ void InspectorInstrumentation::willDestroyWebGPURenderPipelineImpl(Instrumenting
 {
     if (CheckedPtr canvasAgent = instrumentingAgents.enabledCanvasAgent())
         canvasAgent->willDestroyWebGPURenderPipeline(pipeline);
+}
+
+void InspectorInstrumentation::didChangeWebGPURenderPipelineLabelImpl(InstrumentingAgents& instrumentingAgents, GPURenderPipeline& pipeline)
+{
+    if (CheckedPtr canvasAgent = instrumentingAgents.enabledCanvasAgent())
+        canvasAgent->didChangeWebGPURenderPipelineLabel(pipeline);
 }
 
 bool InspectorInstrumentation::isWebGPURenderPipelineDisabledImpl(InstrumentingAgents& instrumentingAgents, GPURenderPipeline& pipeline)

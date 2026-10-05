@@ -669,6 +669,15 @@ void InspectorCanvasAgent::willDestroyWebGPUDevice(GPUDevice& device)
     unbindCanvas(*inspectorCanvas);
 }
 
+void InspectorCanvasAgent::didChangeWebGPUDeviceLabel(GPUDevice& device)
+{
+    RefPtr inspectorCanvas = findInspectorCanvas(device);
+    if (!inspectorCanvas)
+        return;
+
+    m_frontendDispatcher->canvasNameChanged(inspectorCanvas->identifier(), device.label());
+}
+
 void InspectorCanvasAgent::didChangeGPUDeviceClientNodes(GPUDevice& device)
 {
     RefPtr inspectorCanvas = findInspectorCanvas(device);
@@ -709,6 +718,15 @@ void InspectorCanvasAgent::willDestroyWebGPUComputePipeline(GPUComputePipeline& 
     unbindProgram(*inspectorProgram);
 }
 
+void InspectorCanvasAgent::didChangeWebGPUComputePipelineLabel(GPUComputePipeline& pipeline)
+{
+    RefPtr inspectorProgram = findInspectorProgram(pipeline);
+    if (!inspectorProgram)
+        return;
+
+    m_frontendDispatcher->programNameChanged(inspectorProgram->identifier(), pipeline.label());
+}
+
 void InspectorCanvasAgent::didCreateWebGPURenderPipeline(GPUDevice& device, GPURenderPipeline& pipeline)
 {
     auto inspectorCanvas = findInspectorCanvas(device);
@@ -729,6 +747,15 @@ void InspectorCanvasAgent::willDestroyWebGPURenderPipeline(GPURenderPipeline& pi
         return;
 
     unbindProgram(*inspectorProgram);
+}
+
+void InspectorCanvasAgent::didChangeWebGPURenderPipelineLabel(GPURenderPipeline& pipeline)
+{
+    RefPtr inspectorProgram = findInspectorProgram(pipeline);
+    if (!inspectorProgram)
+        return;
+
+    m_frontendDispatcher->programNameChanged(inspectorProgram->identifier(), pipeline.label());
 }
 
 bool InspectorCanvasAgent::isWebGPURenderPipelineDisabled(GPURenderPipeline& pipeline)
