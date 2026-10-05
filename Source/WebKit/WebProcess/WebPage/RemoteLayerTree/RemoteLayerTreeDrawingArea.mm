@@ -51,6 +51,7 @@
 #import <WebCore/PageOverlayController.h>
 #import <WebCore/RenderLayerCompositor.h>
 #import <WebCore/RenderView.h>
+#import <WebCore/RunLoopObserver.h>
 #import <WebCore/ScrollView.h>
 #import <WebCore/Settings.h>
 #import <WebCore/TiledBacking.h>
@@ -73,6 +74,10 @@ RemoteLayerTreeDrawingArea::RemoteLayerTreeDrawingArea(WebPage& webPage, const W
     : DrawingArea(parameters.drawingAreaIdentifier, webPage)
     , m_remoteLayerTreeContext(RemoteLayerTreeContext::create(webPage))
     , m_updateRenderingTimer(*this, &RemoteLayerTreeDrawingArea::updateRendering)
+    , m_postRenderingUpdateRunLoopObserver(makeUnique<RunLoopObserver>(RunLoopObserver::WellKnownOrder::PostRenderingUpdate, [this] {
+        didCompleteRenderingFrame();
+        m_postRenderingUpdateRunLoopObserver->invalidate();
+    }))
     , m_commitQueue(WorkQueue::create("com.apple.WebKit.WebContent.RemoteLayerTreeDrawingArea.CommitQueue"_s, WorkQueue::QOS::UserInteractive))
     , m_backingStoreFlusher(BackingStoreFlusher::create(*WebProcess::singleton().parentProcessConnection()))
     , m_scheduleRenderingTimer(*this, &RemoteLayerTreeDrawingArea::scheduleRenderingUpdateTimerFired)
@@ -433,19 +438,21 @@ void RemoteLayerTreeDrawingArea::updateRendering()
 
         RunLoop::mainSingleton().dispatch([pageID, flushSucceeded] () mutable {
             if (RefPtr webPage = WebProcess::singleton().webPage(pageID)) {
-                if (RefPtr drawingArea = dynamicDowncast<RemoteLayerTreeDrawingArea>(webPage->drawingArea())) {
+                if (RefPtr drawingArea = dynamicDowncast<RemoteLayerTreeDrawingArea>(webPage->drawingArea()))
                     drawingArea->didCompleteRenderingUpdateDisplayFlush(flushSucceeded);
-                    drawingArea->didCompleteRenderingFrame();
-                }
             }
         });
     });
+
+    didCompleteRenderingUpdateDisplay();
+
+    if (!m_postRenderingUpdateRunLoopObserver->isScheduled())
+        m_postRenderingUpdateRunLoopObserver->schedule();
 }
 
 void RemoteLayerTreeDrawingArea::didCompleteRenderingUpdateDisplayFlush(bool flushSucceeded)
 {
     protect(m_webPage)->didFlushLayerTreeAtTime(MonotonicTime::now(), flushSucceeded);
-    didCompleteRenderingUpdateDisplay();
 }
 
 void RemoteLayerTreeDrawingArea::displayDidRefresh(MonotonicTime start)
