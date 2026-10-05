@@ -2607,6 +2607,8 @@ Node* InspectorDOMAgent::innerParentNode(Node* node)
         return document->ownerElement();
     if (auto* shadowRoot = dynamicDowncast<ShadowRoot>(*node))
         return shadowRoot->host();
+    if (auto* pseudoElement = dynamicDowncast<PseudoElement>(*node))
+        return pseudoElement->hostElement();
     return node->parentNode();
 }
 
