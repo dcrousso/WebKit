@@ -427,9 +427,18 @@ static void webkitWebContextSetProperty(GObject* object, guint propID, const GVa
     }
 }
 
+static int webkitWebContext = 0;
+
+int webkitWebContextExistingCount()
+{
+    return webkitWebContext;
+}
+
 static void webkitWebContextConstructed(GObject* object)
 {
     G_OBJECT_CLASS(webkit_web_context_parent_class)->constructed(object);
+
+    ++webkitWebContext;
 
     auto bundleFilename = gBuildFilename(injectedBundleDirectory(), INJECTED_BUNDLE_FILENAME);
 
@@ -486,6 +495,8 @@ static void webkitWebContextConstructed(GObject* object)
 
 static void webkitWebContextDispose(GObject* object)
 {
+    --webkitWebContext;
+
     WebKitWebContextPrivate* priv = WEBKIT_WEB_CONTEXT(object)->priv;
     if (!priv->clientsDetached) {
         priv->clientsDetached = true;
@@ -946,6 +957,11 @@ WebKitNetworkSession* webkit_web_context_get_network_session_for_automation(WebK
 #else
     return nullptr;
 #endif
+}
+
+void webkit_web_context_set_network_session_for_automation(WebKitWebContext* context, WebKitNetworkSession* session)
+{
+    context->priv->automationNetworkSession = session;
 }
 #endif
 /**

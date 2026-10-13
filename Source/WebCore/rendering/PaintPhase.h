@@ -86,6 +86,7 @@ enum class PaintBehavior : uint32_t {
     DraggableSnapshot                           = 1 << 23,
     IncludeDocumentMarkers                      = 1 << 24,
     FastAndLowQualityFilters                    = 1 << 25,
+    IgnoreScaleDelegation                       = 1 << 26, // Snapshot is pixel-snapped as if the page scale were not delegated.
 };
 
 } // namespace WebCore

@@ -103,6 +103,7 @@
 #include "WebsiteData.h"
 #include "WebsiteDataStoreParameters.h"
 #include "WebsiteDataType.h"
+#include <JavaScriptCore/IdentifiersFactory.h>
 #include <JavaScriptCore/JSLock.h>
 #include <JavaScriptCore/MemoryStatistics.h>
 #include <JavaScriptCore/WasmFaultSignalHandler.h>
@@ -442,6 +443,14 @@ void WebProcess::initializeProcess(const AuxiliaryProcessInitializationParameter
     {
         JSC::Options::AllowUnfinalizedAccessScope scope;
         JSC::Options::allowNonSPTagging() = false;
+        // Playwright begin
+        // Cocoa enables SharedArrayBuffer via the XPC service "enable-shared-array-buffer" option,
+        // GTK and WPE in initializeWebProcess(). For Windows, enable it here.
+#if PLATFORM(WIN)
+        if (parameters.shouldEnableSharedArrayBuffer)
+            JSC::Options::useSharedArrayBuffer() = true;
+#endif
+        // Playwright end
         JSC::Options::notifyOptionsChanged();
     }
 
@@ -449,6 +458,8 @@ void WebProcess::initializeProcess(const AuxiliaryProcessInitializationParameter
 
     platformInitializeProcess(parameters);
     updateCPULimit();
+
+    Inspector::IdentifiersFactory::initializeWithProcessID(parameters.processIdentifier->toUInt64());
 }
 
 void WebProcess::initializeConnection(IPC::Connection* connection)
@@ -642,7 +653,8 @@ void WebProcess::initializeWebProcess(WebProcessCreationParameters&& parameters,
 
     if (!parameters.overrideLanguages.isEmpty()) {
         LOG_WITH_STREAM(Language, stream << "Web Process initialization is setting overrideLanguages: " << parameters.overrideLanguages);
-        overrideUserPreferredLanguages(parameters.overrideLanguages);
+        m_overrideLanguages = parameters.overrideLanguages;
+        overrideUserPreferredLanguages(m_overrideLanguages);
     } else
         LOG(Language, "Web process initialization is not setting overrideLanguages");
 
@@ -1030,10 +1042,18 @@ void WebProcess::setDisableFontSubpixelAntialiasingForTesting(bool disable)
     WebCore::FontCascade::setDisableFontSubpixelAntialiasingForTesting(disable);
 }
 
-void WebProcess::userPreferredLanguagesChanged(const Vector<String>& languages) const
+void WebProcess::userPreferredLanguagesChanged(const Vector<String>& languages)
 {
     LOG_WITH_STREAM(Language, stream << "The web process's userPreferredLanguagesChanged: " << languages);
-    overrideUserPreferredLanguages(languages);
+    m_overrideLanguages = languages;
+    overrideUserPreferredLanguages(m_overrideLanguages);
+}
+
+void WebProcess::applyOverrideLanguagesToRequest(ResourceRequest& request) const
+{
+    if (m_overrideLanguages.isEmpty() || request.hasHTTPHeaderField(HTTPHeaderName::AcceptLanguage))
+        return;
+    request.setHTTPHeaderField(HTTPHeaderName::AcceptLanguage, makeStringByJoining(m_overrideLanguages.span(), ", "_s));
 }
 
 void WebProcess::fullKeyboardAccessModeChanged(bool fullKeyboardAccessEnabled)
@@ -1123,6 +1143,7 @@ void WebProcess::createWebPage(PageIdentifier pageID, WebPageCreationParameters&
         m_hasPendingAccessibilityUnsuspension = false;
         accessibilityRelayProcessSuspended(false);
     }
+    page->didAddWebPageToWebProcess();
 }
 
 Awaitable<unsigned> WebProcess::countWebPagesForTesting()

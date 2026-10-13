@@ -114,13 +114,13 @@ protected:
     WEBCORE_EXPORT std::optional<Vector<Cookie>> cookiesForSessionAsVector(const URL& firstParty, const SameSiteInfo&, const URL&, CookiesFor, IncludeSecureCookies, ThirdPartyCookieBlockingDecision, const String& partition, const String& cookieName) const;
     WEBCORE_EXPORT RetainPtr<NSArray> cookiesForURL(const URL& firstParty, const SameSiteInfo&, const URL&, ThirdPartyCookieBlockingDecision, const String& partition) const;
     WEBCORE_EXPORT void deleteHTTPCookie(CFHTTPCookieStorageRef, NSHTTPCookie *, CompletionHandler<void()>&&) const;
+    WEBCORE_EXPORT void setHTTPCookiesForURL(CFHTTPCookieStorageRef, NSArray *cookies, NSURL *, NSURL *mainDocumentURL, NSString *partition, const SameSiteInfo&, ThirdPartyCookieBlockingDecision) const;
     WEBCORE_EXPORT static Vector<Cookie> nsCookiesToCookieVector(NSArray *, NOESCAPE const Function<bool(NSHTTPCookie *)>& filter = { });
 #endif
 
 private:
 #if PLATFORM(COCOA)
     RetainPtr<NSArray> httpCookiesForURL(CFHTTPCookieStorageRef, NSURL *firstParty, const std::optional<SameSiteInfo>&, NSURL *, ThirdPartyCookieBlockingDecision, NSString *partition) const;
-    void setHTTPCookiesForURL(CFHTTPCookieStorageRef, NSArray *cookies, NSURL *, NSURL *mainDocumentURL, NSString *partition, const SameSiteInfo&, ThirdPartyCookieBlockingDecision) const;
 #endif
 
     const PAL::SessionID m_sessionID;

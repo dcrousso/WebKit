@@ -127,7 +127,7 @@ bool screenSupportsExtendedColor(Widget*)
 }
 
 #if ENABLE(TOUCH_EVENTS)
-bool screenHasTouchDevice()
+bool platformScreenHasTouchDevice()
 {
     Ref platformScreen = PlatformScreen::singleton();
     return platformScreen->screenProperties().screenHasTouchDevice;

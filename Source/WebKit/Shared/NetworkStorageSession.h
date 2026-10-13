@@ -142,6 +142,8 @@ public:
     void clearAlternativeServices();
 #endif
 
+    void setCookiesFromResponse(const URL& firstParty, const WebCore::SameSiteInfo&, const URL&, const String& setCookieValue);
+
     WebCore::HTTPCookieAcceptPolicy cookieAcceptPolicy() const;
 #if PLATFORM(COCOA)
     using WebCore::CookieStorageSession::setCookie;

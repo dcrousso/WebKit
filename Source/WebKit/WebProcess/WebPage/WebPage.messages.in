@@ -89,10 +89,13 @@ messages -> WebPage WantsAsyncDispatchMessage {
     DispatchTrackedPointerEvent(std::optional<WebCore::FrameIdentifier> frameID, enum:uint8_t WebKit::WebEventPhase phase, WebCore::FloatPoint locationInRootView, OptionSet<WebKit::WebEventModifier> modifiers) -> (bool wasCanceled, struct std::optional<WebCore::RemoteUserInputEventData> remoteUserInputEventData)
 #endif
 
+#if ENABLE(ORIENTATION_EVENTS)
+    SetDeviceOrientation(WebCore::IntDegrees deviceOrientation)
+#endif
+
 #if PLATFORM(IOS_FAMILY)
     SetSceneIdentifier(String sceneIdentifier)
     SetViewportConfigurationViewLayoutSize(WebCore::FloatSize size, double scaleFactor, double minimumEffectiveDeviceWidth)
-    SetDeviceOrientation(WebCore::IntDegrees deviceOrientation)
     SetOverrideViewportArguments(struct std::optional<WebCore::ViewportArguments> arguments)
     DynamicViewportSizeUpdate(struct WebKit::DynamicViewportSizeUpdate target)
 
@@ -181,6 +184,7 @@ messages -> WebPage WantsAsyncDispatchMessage {
     ConnectInspector(Inspector::FrontendChannel::ConnectionType connectionType)
     DisconnectInspector()
     SendMessageToTargetBackend(String message)
+    ResumeInspectorIfPausedInNewWindow();
 
 #if ENABLE(REMOTE_INSPECTOR)
     SetIndicating(bool indicating);
@@ -191,6 +195,7 @@ messages -> WebPage WantsAsyncDispatchMessage {
 #endif
 #if !ENABLE(IOS_TOUCH_EVENTS) && ENABLE(TOUCH_EVENTS)
     TouchEvent(Ref<WebKit::WebTouchEvent> event) -> (enum:uint32_t std::optional<WebKit::WebEventType> eventType, bool handled)
+    FakeTouchTap(WebCore::IntPoint position, uint8_t modifiers) -> () Async
 #endif
 
     CancelPointer(WebCore::PointerID pointerId, WebCore::IntPoint documentPoint)
@@ -220,6 +225,7 @@ messages -> WebPage WantsAsyncDispatchMessage {
 
     LoadRequest(struct WebKit::LoadParameters loadParameters)
     LoadDidCommitInAnotherProcess(WebCore::FrameIdentifier frameID, WebCore::ProcessIdentifier hostingProcessID, std::optional<WebCore::LayerHostingContextIdentifier> layerHostingContextIdentifier, RefPtr<WebCore::DocumentSyncData> topDocumentSyncData) -> ()
+    LoadRequestInFrameForInspector(struct WebKit::LoadParameters loadParameters, WebCore::FrameIdentifier frameID)
     LoadRequestWaitingForProcessLaunch(struct WebKit::LoadParameters loadParameters, URL resourceDirectoryURL, WebKit::WebPageProxyIdentifier pageID, bool checkAssumedReadAccessToResourceURL)
     LoadData(struct WebKit::LoadParameters loadParameters)
     LoadSimulatedRequestAndResponse(struct WebKit::LoadParameters loadParameters, WebCore::ResourceResponse simulatedResponse)
@@ -433,6 +439,10 @@ messages -> WebPage WantsAsyncDispatchMessage {
 #if ENABLE(CONNECTED_VOLUMETRIC_SCENE)
     [EnabledBy=SpatialPortalEnabled] VolumetricSceneDidClose(WebCore::NodeIdentifier nodeID)
     [EnabledBy=SpatialPortalEnabled] UpdateVolumetricSceneSize(WebCore::NodeIdentifier nodeID, WebCore::FloatSize volumeSizeInMeters)
+#endif
+
+#if PLATFORM(MAC) && ENABLE(DRAG_SUPPORT)
+    SetDragPasteboardName(String pasteboardName)
 #endif
 
 #if PLATFORM(IOS_FAMILY) && ENABLE(DRAG_SUPPORT)

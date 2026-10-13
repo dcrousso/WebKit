@@ -65,11 +65,10 @@ Protocol::Network::FrameId LegacyIdentifierRegistry::frameId(const WebCore::Fram
 {
     if (!frame)
         return emptyString();
-    return m_frameToIdentifier.ensure(*frame, [this, frame] {
-        auto identifier = IdentifiersFactory::createIdentifier();
-        m_identifierToFrame.set(identifier, frame);
-        return identifier;
-    }).iterator->value;
+
+    auto identifier = String::number(frame->frameID().toUInt64());
+    m_identifierToFrame.set(identifier, frame);
+    return identifier;
 }
 
 Protocol::Network::LoaderId LegacyIdentifierRegistry::loaderId(WebCore::DocumentLoader* loader)
@@ -77,12 +76,11 @@ Protocol::Network::LoaderId LegacyIdentifierRegistry::loaderId(WebCore::Document
     if (!loader)
         return emptyString();
 
-    if (auto navigationID = loader->navigationID())
-        return makeString("loader-"_s, navigationID->processIdentifier().toUInt64(), '.', navigationID->object().toUInt64());
+    auto navigationID = loader->navigationID();
+    if (!navigationID)
+        return emptyString();
 
-    return m_loaderToIdentifier.ensure(loader, [] {
-        return IdentifiersFactory::createIdentifier();
-    }).iterator->value;
+    return navigationID->toString();
 }
 
 RefPtr<WebCore::LocalFrame> LegacyIdentifierRegistry::assertFrame(Protocol::ErrorString& errorString, const Protocol::Network::FrameId& frameId)
@@ -95,15 +93,19 @@ RefPtr<WebCore::LocalFrame> LegacyIdentifierRegistry::assertFrame(Protocol::Erro
 
 Protocol::Network::FrameId LegacyIdentifierRegistry::takeFrame(const WebCore::Frame& frame)
 {
-    auto identifier = m_frameToIdentifier.take(frame);
-    if (!identifier.isNull())
-        m_identifierToFrame.remove(identifier);
+    auto identifier = String::number(frame.frameID().toUInt64());
+    if (!m_identifierToFrame.take(identifier))
+        return {};
     return identifier;
 }
 
 Protocol::Network::LoaderId LegacyIdentifierRegistry::takeLoader(WebCore::DocumentLoader& loader)
 {
-    return m_loaderToIdentifier.take(&loader);
+    auto navigationID = loader.navigationID();
+    if (!navigationID)
+        return {};
+
+    return navigationID->toString();
 }
 
 // --- BackendIdentifierRegistry ---

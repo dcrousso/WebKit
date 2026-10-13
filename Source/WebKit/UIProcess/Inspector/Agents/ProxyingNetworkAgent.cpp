@@ -530,6 +530,12 @@ CommandResult<void> ProxyingNetworkAgent::interceptRequestWithError(const Protoc
     return makeUnexpected("Missing pending intercept request for given requestId"_s);
 }
 
+CommandResult<void> ProxyingNetworkAgent::setEmulateOfflineState(bool)
+{
+    // FIXME: Forward to all WebContent processes.
+    return { };
+}
+
 #if ENABLE(INSPECTOR_NETWORK_THROTTLING)
 
 CommandResult<void> ProxyingNetworkAgent::setEmulatedConditions(std::optional<int>&& bandwidth, std::optional<int>&& latency)

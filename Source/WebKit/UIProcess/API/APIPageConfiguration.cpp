@@ -282,6 +282,11 @@ WebCore::CrossOriginMode PageConfiguration::crossOriginMode() const
     return group ? group->crossOriginMode() : WebCore::CrossOriginMode::Shared;
 }
 
+WebKit::WebPageProxy* PageConfiguration::openerPageForInspector() const
+{
+    return m_data.openerPageForInspector.get();
+}
+
 WebPageProxy* PageConfiguration::pageToCloneSessionStorageFrom() const
 {
     return m_data.pageToCloneSessionStorageFrom.get();

@@ -1463,6 +1463,7 @@ void FrameLoader::loadInSameDocument(URL url, RefPtr<SerializedScriptValue> stat
     }
 
     m_client->dispatchDidNavigateWithinPage();
+    InspectorInstrumentation::didNavigateWithinPage(m_frame);
 
     document->statePopped(stateObject ? stateObject.releaseNonNull() : SerializedScriptValue::nullValue());
     m_client->dispatchDidPopStateWithinPage();
@@ -2033,6 +2034,7 @@ void FrameLoader::loadWithDocumentLoader(DocumentLoader* loader, FrameLoadType t
     const String& httpMethod = loader->request().httpMethod();
 
     if (shouldPerformFragmentNavigation(isFormSubmission, httpMethod, policyChecker().loadType(), newURL) && !loader->substituteData().isValid()) {
+        loader->replacedByFragmentNavigation(m_frame);
 
         RefPtr oldDocumentLoader = m_documentLoader;
         NavigationAction action { protect(frame->document()).releaseNonNull(), loader->request(), InitiatedByMainFrame::Unknown, loader->isRequestFromClientOrUserInput(), policyChecker().loadType(), isFormSubmission };
@@ -2075,6 +2077,7 @@ void FrameLoader::loadWithDocumentLoader(DocumentLoader* loader, FrameLoadType t
         return;
 
     RELEASE_ASSERT(!isBackForwardLoadType(policyChecker().loadType()) || history().provisionalItem());
+    InspectorInstrumentation::willCheckNavigationPolicy(m_frame);
     policyChecker().checkNavigationPolicy(ResourceRequest(loader->request()), ResourceResponse { } /* redirectResponse */, loader, WTF::move(formSubmission), [
         this,
         protectedThis = Ref { *this },
@@ -2083,6 +2086,7 @@ void FrameLoader::loadWithDocumentLoader(DocumentLoader* loader, FrameLoadType t
         expectedPolicyDocumentLoader = RefPtr { loader },
         completionHandler = completionHandlerCaller.release()
     ] (const ResourceRequest& request, WeakPtr<const FormSubmission>&& weakFormSubmission, NavigationPolicyDecision navigationPolicyDecision) mutable {
+        InspectorInstrumentation::didCheckNavigationPolicy(m_frame, navigationPolicyDecision != NavigationPolicyDecision::ContinueLoad);
         // A download attribute check is not cancelled by the navigation that follows it, so it can be
         // answered once a newer navigation owns m_policyDocumentLoader. Continuing would tear that
         // newer navigation down; the download, if any, has already started.
@@ -3475,10 +3479,15 @@ String FrameLoader::userAgent(const URL& url) const
 
 String FrameLoader::navigatorPlatform() const
 {
+    String platform;
+
     auto customNavigatorPlatform = protect(m_frame->mainFrame())->customNavigatorPlatform();
     if (!customNavigatorPlatform.isEmpty())
-        return customNavigatorPlatform;
-    return String();
+        platform = customNavigatorPlatform;
+
+    InspectorInstrumentation::applyPlatformOverride(m_frame, platform);
+
+    return platform;
 }
 
 void FrameLoader::dispatchOnloadEvents()
@@ -3963,6 +3972,8 @@ void FrameLoader::receivedMainResourceError(const ResourceError& error, LoadWill
     }
     if (frame->page())
         checkLoadComplete(loadWillContinueInAnotherProcess);
+
+    InspectorInstrumentation::didReceiveMainResourceError(m_frame, error);
 }
 
 void FrameLoader::continueFragmentScrollAfterNavigationPolicy(const ResourceRequest& request, const SecurityOrigin* requesterOrigin, bool shouldContinue, NavigationHistoryBehavior historyHandling)
@@ -5090,9 +5101,6 @@ String FrameLoader::referrer() const
 
 void FrameLoader::dispatchDidClearWindowObjectsInAllWorlds()
 {
-    if (!protect(m_frame->script())->canExecuteScripts(ReasonForCallingCanExecuteScripts::NotAboutToExecuteScript))
-        return;
-
     Vector<Ref<DOMWrapperWorld>> worlds;
     ScriptController::getAllWorlds(worlds);
     for (auto& world : worlds)
@@ -5102,13 +5110,12 @@ void FrameLoader::dispatchDidClearWindowObjectsInAllWorlds()
 void FrameLoader::dispatchDidClearWindowObjectInWorld(DOMWrapperWorld& world)
 {
     Ref frame = m_frame.get();
-    if (!protect(frame->script())->canExecuteScripts(ReasonForCallingCanExecuteScripts::NotAboutToExecuteScript) || !protect(frame->windowProxy())->existingJSWindowProxy(world))
-        return;
-
-    m_client->dispatchDidClearWindowObjectInWorld(world);
-
-    if (RefPtr page = frame->page())
-        page->inspectorController().didClearWindowObjectInWorld(frame, world);
+    if (frame->windowProxy().existingJSWindowProxy(world)) {
+        if (protect(frame->script())->canExecuteScripts(ReasonForCallingCanExecuteScripts::NotAboutToExecuteScript))
+            m_client->dispatchDidClearWindowObjectInWorld(world);
+        if (RefPtr page = frame->page())
+            page->inspectorController().didClearWindowObjectInWorld(m_frame, world);
+    }
 
     InspectorInstrumentation::didClearWindowObjectInWorld(frame, world);
 }

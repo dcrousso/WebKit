@@ -94,6 +94,8 @@ RefPtr<ImageBuffer> snapshotFrameRectWithClip(LocalFrame& frame, const IntRect& 
 
     ScopedFramePaintingState state(frame);
 
+    bool ignoreScaleDelegation = frame.page()->delegatesScaling() && options.flags.contains(SnapshotFlags::IgnoreScaleDelegation);
+
     auto paintBehavior = state.paintBehavior;
     if (options.flags.contains(SnapshotFlags::ForceBlackText))
         paintBehavior.add(PaintBehavior::ForceBlackText);
@@ -115,15 +117,21 @@ RefPtr<ImageBuffer> snapshotFrameRectWithClip(LocalFrame& frame, const IntRect& 
         paintBehavior.add(PaintBehavior::IncludeDocumentMarkers);
     if (options.flags.contains(SnapshotFlags::FastAndLowQualityFilters))
         paintBehavior.add(PaintBehavior::FastAndLowQualityFilters);
+    if (ignoreScaleDelegation) {
+        // IgnoreScaleDelegation changes Document::pixelSnappingScaleFactor(), so settle style and layout
+        // first: only the snapshot paint may observe it.
+        protect(frame.view())->updateLayoutAndStyleIfNeededRecursive();
+        paintBehavior.add(PaintBehavior::IgnoreScaleDelegation);
+    }
 
     // Other paint behaviors are set by paintContentsForSnapshot.
     frame.view()->setPaintBehavior(paintBehavior);
 
-    float scaleFactor = frame.page()->deviceScaleFactor();
+    float scaleFactor = options.flags.contains(SnapshotFlags::OmitDeviceScaleFactor) ? 1 : frame.page()->deviceScaleFactor();
     if (options.flags.contains(SnapshotFlags::PaintWith3xBaseScale))
         scaleFactor = 3;
 
-    if (frame.page()->delegatesScaling())
+    if (frame.page()->delegatesScaling() && !ignoreScaleDelegation)
         scaleFactor *= frame.page()->pageScaleFactor();
 
     if (options.flags.contains(SnapshotFlags::PaintWithIntegralScaleFactor))
@@ -137,7 +145,19 @@ RefPtr<ImageBuffer> snapshotFrameRectWithClip(LocalFrame& frame, const IntRect& 
     if (!buffer)
         return nullptr;
 
+    // Maps imageRect to the coordinates the frame view paints in. Without delegation, the page scale is
+    // baked into layout, so document coordinates must be scaled; with it, layout is unscaled and it is the
+    // view coordinates that must be mapped back, as if the page scale were applied by the frame view.
+    float paintScale = 1;
+    if (coordinateSpace != LocalFrameView::ViewCoordinates) {
+        if (!frame.page()->delegatesScaling())
+            paintScale = frame.page()->pageScaleFactor();
+    } else if (ignoreScaleDelegation)
+        paintScale = 1 / frame.page()->pageScaleFactor();
+
     buffer->context().translate(-imageRect.location());
+    if (paintScale != 1)
+        buffer->context().scale(1 / paintScale);
 
     if (!clipRects.isEmpty()) {
         Path clipPath;
@@ -146,7 +166,9 @@ RefPtr<ImageBuffer> snapshotFrameRectWithClip(LocalFrame& frame, const IntRect& 
         buffer->context().clipPath(clipPath);
     }
 
-    protect(frame.view())->paintContentsForSnapshot(buffer->context(), imageRect, nodeToDraw, shouldIncludeSelection, coordinateSpace);
+    FloatRect fr = imageRect;
+    fr.scale(paintScale);
+    protect(frame.view())->paintContentsForSnapshot(buffer->context(), enclosingIntRect(fr), nodeToDraw, shouldIncludeSelection, coordinateSpace);
     return buffer;
 }
 

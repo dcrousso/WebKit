@@ -197,7 +197,7 @@ private:
 
     WebKitWebResourceLoadManager* webResourceLoadManager() override;
 
-    RefPtr<ViewSnapshot> takeViewSnapshot(std::optional<WebCore::IntRect>&&) override;
+    RefPtr<ViewSnapshot> takeViewSnapshot(std::optional<WebCore::IntRect>&&, bool nominalResolution) override;
 
     WKWPE::View& m_view;
     DefaultUndoController m_undoController;

@@ -28,6 +28,7 @@
 // Including more headers here slows down build times a lot.
 // Use forward declarations and WebPageProxyInternals.h instead.
 #include "APIObject.h"
+#include "APIWebsitePolicies.h"
 #include "MessageReceiver.h"
 #include "RemoteSnapshotIdentifier.h"
 #include "RunJavaScriptResult.h"
@@ -47,6 +48,20 @@
 #include <wtf/SwiftBridging.h>
 #include <wtf/UniqueRef.h>
 #include <wtf/WeakHashSet.h>
+#include "InspectorDialogAgent.h"
+#include "WebProtectionSpace.h"
+#include <WebCore/Credential.h>
+#include <WebCore/IntRect.h>
+#include "WebPageDiagnosticLoggingClient.h"
+#include "WebPageInjectedBundleClient.h"
+#include "WebPreferences.h"
+#include "ViewSnapshotStore.h"
+
+OBJC_CLASS NSPasteboard;
+
+#if PLATFORM(GTK) || PLATFORM(WPE)
+#include <WebCore/SelectionData.h>
+#endif
 
 #if USE(COORDINATED_GRAPHICS) && HAVE(DISPLAY_LINK)
 #include "DisplayLinkObserverID.h"
@@ -158,6 +173,7 @@ class FloatPoint;
 class FloatPoint3D;
 #endif
 class FloatQuad;
+typedef HashMap<unsigned, Vector<String>> DragDataMap;
 class FloatRect;
 class FloatSize;
 class FontAttributeChanges;
@@ -894,6 +910,8 @@ public:
 
     RefPtr<WebAutomationSession> activeAutomationSession() const;
 
+    InspectorDialogAgent* inspectorDialogAgent() { return m_inspectorDialogAgent; }
+    void setInspectorDialogAgent(InspectorDialogAgent * dialogAgent) { m_inspectorDialogAgent = dialogAgent; }
     WebPageInspectorController& inspectorController() LIFETIME_BOUND { return m_inspectorController.get(); }
 
 #if PLATFORM(IOS_FAMILY)
@@ -929,6 +947,7 @@ public:
     bool NODELETE hasSleepDisabler() const;
 
 #if ENABLE(FULLSCREEN_API)
+    void setFullScreenManagerClientOverride(std::unique_ptr<WebFullScreenManagerProxyClient>&&);
     WebFullScreenManagerProxy* NODELETE fullScreenManager();
     void setFullScreenClientForTesting(std::unique_ptr<WebKit::WebFullScreenManagerProxyClient>&&);
 
@@ -996,6 +1015,13 @@ public:
 
     void setPageLoadStateObserver(RefPtr<PageLoadStateObserverBase>&&);
 
+    void setAuthCredentialsForAutomation(std::optional<Vector<std::pair<WebCore::Credential, std::optional<URL>>>>&&);
+    void setPermissionsForAutomation(const UncheckedKeyHashMap<String, HashSet<String>>&);
+    std::optional<bool> permissionForAutomation(const String& origin, const String& permission) const;
+    void setOrientationOverride(std::optional<int>&& angle);
+    void setActiveForAutomation(std::optional<bool> active);
+    void logToStderr(const String& str);
+
     void initializeWebPage(const WebCore::Site&, WebCore::SandboxFlags, WebCore::ReferrerPolicy);
     void setDrawingArea(RefPtr<DrawingAreaProxy>&&);
 
@@ -1026,6 +1052,8 @@ public:
     RefPtr<API::Navigation> loadRequest(WebCore::ResourceRequest&&, WebCore::ShouldOpenExternalURLsPolicy);
     RefPtr<API::Navigation> loadRequest(WebCore::ResourceRequest&&, WebCore::ShouldOpenExternalURLsPolicy, WebCore::NavigationUpgradeToHTTPSBehavior);
     RefPtr<API::Navigation> loadRequest(WebCore::ResourceRequest&&, WebCore::ShouldOpenExternalURLsPolicy, WebCore::NavigationUpgradeToHTTPSBehavior, std::unique_ptr<NavigationActionData>&&, API::Object* userData = nullptr, bool isRequestFromClientOrUserInput = true);
+
+    RefPtr<API::Navigation> loadRequestForInspector(WebCore::ResourceRequest&&, WebFrameProxy*);
 
     RefPtr<API::Navigation> loadFile(const String& fileURL, const String& resourceDirectoryURL, bool isAppInitiated = true, API::Object* userData = nullptr);
     RefPtr<API::Navigation> loadData(Ref<WebCore::SharedBuffer>&&, const String& MIMEType, const String& encoding, const String& baseURL, API::Object* userData = nullptr);
@@ -1145,6 +1173,7 @@ public:
     void restoreSelectionInFocusedEditableElement();
 
     PageClient* NODELETE pageClient() const;
+    bool hasPageClient() const { return !!m_pageClient; }
 
     void setViewNeedsDisplay(const WebCore::Region&);
     void requestScroll(const WebCore::FloatPoint& scrollPosition, const WebCore::IntPoint& scrollOrigin, WebCore::ScrollIsAnimated, WebCore::InterruptScrollAnimation);
@@ -1866,6 +1895,9 @@ public:
 
     void backForwardRemovedItem(WebCore::BackForwardFrameItemIdentifier);
 
+    // Playwright: true while the inspector input agent is dispatching synthetic mouse input.
+    void setSimulatingUserInput(bool);
+
 #if ENABLE(DRAG_SUPPORT)    
     // Drag and drop support.
     void dragEntered(WebCore::DragData&, const String& dragStorageName = String());
@@ -1878,17 +1910,23 @@ public:
     void didStartDrag(const std::optional<WebCore::FrameIdentifier>& = std::nullopt);
     void dragCancelled(const std::optional<WebCore::FrameIdentifier>& = std::nullopt);
     void setDragCaretRect(const WebCore::IntRect&);
+    void setInterceptDrags(bool shouldIntercept);
+    bool cancelDragIfNeeded();
 #if PLATFORM(COCOA)
     void propagateDragAndDrop(DragEventForwardingData&&, const String&, WebCore::DragData&&);
     void startDrag(const WebCore::DragItem&, WebCore::ShareableBitmapHandle&& dragImageHandle, const std::optional<WebCore::NodeIdentifier>&, const std::optional<WebCore::FrameIdentifier>& = std::nullopt);
     void setPromisedDataForImage(IPC::Connection&, const String& pasteboardName, WebCore::SharedMemoryHandle&& imageHandle, const String& filename, const String& extension,
         const String& title, const String& url, const String& visibleURL, WebCore::SharedMemoryHandle&& archiveHandle, const String& originIdentifier);
+    void releaseInspectorDragPasteboard();
 #endif
 #if PLATFORM(GTK) || PLATFORM(WPE)
     void startDrag(WebCore::SelectionData&&, OptionSet<WebCore::DragOperation>, std::optional<WebCore::ShareableBitmapHandle>&& dragImage, WebCore::IntPoint&& dragImageHotspot);
 #endif
 #if ENABLE(MODEL_PROCESS)
     void modelDragEnded(const WebCore::NodeIdentifier);
+#endif
+#if PLATFORM(WIN)
+    void startDrag(WebCore::DragDataMap&& dragDataMap);
 #endif
 #endif
 
@@ -2162,6 +2200,7 @@ public:
     void setViewportSizeForCSSViewportUnits(const WebCore::FloatSize&);
     WebCore::FloatSize NODELETE viewportSizeForCSSViewportUnits() const;
 
+    std::optional<WebCore::Credential> automationCredentialsForProtectionSpace(const WebProtectionSpace&);
     void didReceiveAuthenticationChallengeProxy(Ref<AuthenticationChallengeProxy>&&, NegotiatedLegacyTLS);
     bool canShowLocalNetworkAccessPrompt(const WebCore::ClientOrigin&) const;
     void requestLocalNetworkAccessPermission(const WebCore::ClientOrigin&, WebCore::IPAddressSpace, CompletionHandler<void(bool)>&&);
@@ -2195,6 +2234,8 @@ public:
     // TODO Replace RefPtr with Expected for error reporting https://webkit.org/b/300271
     RefPtr<ViewSnapshot> takeViewSnapshot(std::optional<WebCore::IntRect>&&);
     RefPtr<ViewSnapshot> takeViewSnapshot(std::optional<WebCore::IntRect>&&, ForceSoftwareCapturingViewportSnapshot);
+#elif PLATFORM(WPE)
+    RefPtr<ViewSnapshot> takeViewSnapshot(std::optional<WebCore::IntRect>&&) { return nullptr; }
 #endif
 
     void serializeAndWrapCryptoKey(IPC::Connection&, WebCore::CryptoKeyData&&, CompletionHandler<void(std::optional<Vector<uint8_t>>&&)>&&);
@@ -3994,6 +4035,7 @@ private:
     String m_openedMainFrameName;
 
     const RefPtr<WebInspectorUIProxy> m_inspector;
+    InspectorDialogAgent* m_inspectorDialogAgent { nullptr };
 
     struct PendingUndoRedo {
         WebUndoStepID stepID;
@@ -4005,6 +4047,7 @@ private:
     HashMap<WebCore::ProcessIdentifier, uint64_t> m_nextUndoRedoSequenceByProcess;
 
 #if ENABLE(FULLSCREEN_API)
+    std::unique_ptr<WebFullScreenManagerProxyClient> m_fullScreenManagerClientOverride;
     RefPtr<WebFullScreenManagerProxy> m_fullScreenManager;
     std::unique_ptr<API::FullscreenClient> m_fullscreenClient;
 #endif
@@ -4222,6 +4265,9 @@ private:
 
     bool m_mainFrameHasCustomContentProvider { false };
 
+    // Playwright: true while the inspector input agent is dispatching synthetic mouse input.
+    bool m_simulatingUserInput { false };
+
 #if ENABLE(DRAG_SUPPORT)
     // Current drag destination details are delivered as an asynchronous response,
     // so we preserve them to be used when the next dragging delegate call is made.
@@ -4229,6 +4275,22 @@ private:
     bool m_currentDragIsOverFileInput { false };
     unsigned m_currentDragNumberOfFilesToBeAccepted { 0 };
     std::optional<WebCore::FrameIdentifier> m_dragSourceFrameID;
+    WebCore::IntRect m_currentDragCaretRect;
+    WebCore::IntRect m_currentDragCaretEditableElementRect;
+    bool m_interceptDrags { false };
+    OptionSet<WebCore::DragOperation> m_dragSourceOperationMask;
+    WebCore::IntPoint m_lastMousePositionForDrag;
+    int m_dragEventsQueued = 0;
+#if PLATFORM(COCOA)
+    std::optional<String> m_dragSelectionData;
+    String m_overrideDragPasteboardName;
+#endif
+#if PLATFORM(GTK) || PLATFORM(WPE)
+    std::optional<WebCore::SelectionData> m_dragSelectionData;
+#endif
+#if PLATFORM(WIN)
+    std::optional<WebCore::DragDataMap> m_dragSelectionData;
+#endif
 #endif
 
     bool m_mainFrameHasHorizontalScrollbar { false };
@@ -4396,6 +4458,10 @@ private:
         RefPtr<API::Object> messageBody;
     };
     Vector<InjectedBundleMessage> m_pendingInjectedBundleMessages;
+    std::optional<Vector<std::pair<WebCore::Credential, std::optional<URL>>>> m_credentialsForAutomation;
+    UncheckedKeyHashMap<String, HashSet<String>> m_permissionsForAutomation;
+    std::optional<int> m_deviceOrientationOverride;
+    std::optional<bool> m_activeForAutomation;
         
 #if PLATFORM(IOS_FAMILY) && ENABLE(DEVICE_ORIENTATION)
     RefPtr<WebDeviceOrientationUpdateProviderProxy> m_webDeviceOrientationUpdateProviderProxy;

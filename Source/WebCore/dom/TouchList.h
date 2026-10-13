@@ -28,8 +28,8 @@
 #include <WebKitAdditions/TouchListIOS.h>
 #elif ENABLE(TOUCH_EVENTS)
 
-#include "Node.h"
-#include "Touch.h"
+#include <WebCore/Node.h>
+#include <WebCore/Touch.h>
 #include <wtf/FixedVector.h>
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>

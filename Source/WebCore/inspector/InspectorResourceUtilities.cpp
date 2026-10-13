@@ -67,6 +67,7 @@
 #include <wtf/RefPtr.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/URL.h>
+#include <wtf/text/Base64.h>
 
 namespace Inspector {
 
@@ -792,7 +793,7 @@ RequestExtras copyRequestExtras(const ResourceRequest& request, const ResourceLo
         // FIXME: <https://webkit.org/b/326621> Cap the size of postData.
         // flatten() omits files, so a non-empty body can yield no bytes. Keep postData non-null for it.
         auto bytes = body->flatten();
-        requestExtras.postData = bytes.isEmpty() ? emptyString() : String::fromUTF8WithLatin1Fallback(bytes.span());
+        requestExtras.postData = bytes.isEmpty() ? emptyString() : base64EncodeToString(bytes.span());
     }
 
     if (resourceLoader) {
