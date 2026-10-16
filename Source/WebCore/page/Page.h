@@ -434,6 +434,9 @@ public:
     const ViewportArguments* overrideViewportArguments() const LIFETIME_BOUND { return m_overrideViewportArguments.get(); }
     WEBCORE_EXPORT void setOverrideViewportArguments(const std::optional<ViewportArguments>&);
 
+    WEBCORE_EXPORT FloatSize screenSize();
+    void setOverrideScreenSize(std::optional<FloatSize> size);
+
     static void refreshPlugins(bool reload);
     WEBCORE_EXPORT PluginData& pluginData();
     void clearPluginData();
@@ -531,6 +534,10 @@ public:
 #if ENABLE(DRAG_SUPPORT)
     DragController& dragController() LIFETIME_BOUND { return m_dragController.get(); }
     const DragController& dragController() const LIFETIME_BOUND { return m_dragController.get(); }
+#if PLATFORM(MAC)
+    void setDragPasteboardName(const String& pasteboardName) { m_overrideDragPasteboardName = pasteboardName; }
+    const String& overrideDragPasteboardName() { return m_overrideDragPasteboardName; }
+#endif
 #endif
     FocusController& focusController() const { return m_focusController; }
 #if ENABLE(CONTEXT_MENUS)
@@ -733,6 +740,10 @@ public:
     WEBCORE_EXPORT void setUseColorAppearance(bool useDarkAppearance, bool useElevatedUserInterfaceLevel);
     bool defaultUseDarkAppearance() const { return m_useDarkAppearance; }
     void setUseDarkAppearanceOverride(std::optional<bool>);
+    std::optional<bool> useReducedMotionOverride() const { return m_useReducedMotionOverride; }
+    void setUseReducedMotionOverride(std::optional<bool>);
+    std::optional<bool> useForcedColorsOverride() const { return m_useForcedColorsOverride; }
+    void setUseForcedColorsOverride(std::optional<bool>);
 
     float textAutosizingWidth() const { return m_textAutosizingWidth; }
     void setTextAutosizingWidth(float textAutosizingWidth) { m_textAutosizingWidth = textAutosizingWidth; }
@@ -1210,6 +1221,11 @@ public:
 
     WEBCORE_EXPORT void devicePostureTypeChanged();
 
+#if ENABLE(ORIENTATION_EVENTS)
+    int orientation() const;
+    WEBCORE_EXPORT void setOverrideOrientation(std::optional<int>);
+#endif
+
 #if ENABLE(DEVICE_ORIENTATION) && PLATFORM(IOS_FAMILY)
     DeviceOrientationUpdateProvider* deviceOrientationUpdateProvider() const { return m_deviceOrientationUpdateProvider.get(); }
 #endif
@@ -1555,6 +1571,9 @@ private:
 
 #if ENABLE(DRAG_SUPPORT)
     const UniqueRef<DragController> m_dragController;
+#if PLATFORM(MAC)
+    String m_overrideDragPasteboardName;
+#endif
 #endif
     const UniqueRef<FocusController> m_focusController;
 #if ENABLE(CONTEXT_MENUS)
@@ -1635,6 +1654,8 @@ private:
     bool m_useElevatedUserInterfaceLevel { false };
     bool m_useDarkAppearance { false };
     std::optional<bool> m_useDarkAppearanceOverride;
+    std::optional<bool> m_useReducedMotionOverride;
+    std::optional<bool> m_useForcedColorsOverride;
 
     float m_textAutosizingWidth { 0 };
 
@@ -1817,6 +1838,11 @@ private:
 #endif
 
     std::unique_ptr<ViewportArguments> m_overrideViewportArguments;
+    std::optional<FloatSize> m_overrideScreenSize;
+
+#if ENABLE(ORIENTATION_EVENTS)
+    std::optional<int> m_overrideOrientation;
+#endif
 
 #if ENABLE(DEVICE_ORIENTATION) && PLATFORM(IOS_FAMILY)
     const RefPtr<DeviceOrientationUpdateProvider> m_deviceOrientationUpdateProvider;

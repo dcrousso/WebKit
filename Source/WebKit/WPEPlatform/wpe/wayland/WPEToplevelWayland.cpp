@@ -779,14 +779,13 @@ static bool regionsEqual(WPERectangle* rectsA, unsigned rectsACount, WPERectangl
     if (!rectsA || !rectsB)
         return false;
 
-    return std::ranges::all_of(std::views::zip(unsafeMakeSpan(rectsA, rectsACount), unsafeMakeSpan(rectsB, rectsBCount)),
-        [](const auto& rects) {
-            const auto& [rectA, rectB] = rects;
+    return std::ranges::equal(unsafeMakeSpan(rectsA, rectsACount), unsafeMakeSpan(rectsB, rectsBCount),
+        [](const WPERectangle& rectA, const WPERectangle& rectB) {
             return rectA.x == rectB.x
                 && rectA.y == rectB.y
                 && rectA.width == rectB.width
                 && rectA.height == rectB.height;
-    });
+        });
 }
 
 void wpeToplevelWaylandSetOpaqueRectangles(WPEToplevelWayland* toplevel, WPERectangle* rects, unsigned rectsCount)

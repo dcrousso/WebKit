@@ -453,7 +453,7 @@
 
 // ORIENTATION_EVENTS should never get enabled on Desktop, only Mobile.
 #if !defined(ENABLE_ORIENTATION_EVENTS)
-#define ENABLE_ORIENTATION_EVENTS 0
+#define ENABLE_ORIENTATION_EVENTS 1
 #endif
 
 #if OS(WINDOWS)
@@ -570,7 +570,7 @@
 #endif
 
 #if !defined(ENABLE_TOUCH_EVENTS)
-#define ENABLE_TOUCH_EVENTS 0
+#define ENABLE_TOUCH_EVENTS 1
 #endif
 
 #if !defined(ENABLE_CSS_TAP_HIGHLIGHT_COLOR) && ENABLE(TOUCH_EVENTS)

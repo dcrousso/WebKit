@@ -73,8 +73,8 @@ $(IDL_FILE_NAMES_LIST) : $(UICONTEXT_INTERFACES:%=%.idl)
 JS%.h JS%.cpp : %.idl $(SCRIPTS) $(IDL_ATTRIBUTES_FILE) $(IDL_FILE_NAMES_LIST) $(FEATURE_AND_PLATFORM_FLAGS_RESPONSE_FILE)
 	@echo Generating bindings for $*...
 	$(PERL) -I $(WebCoreScripts) -I $(UISCRIPTCONTEXT_DIR) -I $(DumpRenderTree)/Bindings $(WebCoreScripts)/generate-bindings.pl --defines "$(FEATURE_AND_PLATFORM_DEFINES)" --idlFileNamesList $(IDL_FILE_NAMES_LIST) --outputDir . --generator DumpRenderTree --idlAttributesFile $(IDL_ATTRIBUTES_FILE) $<
-#
 
+#
 
 # Only the first match is used, since the file can be present both in the build output and in the SDK.
 WEB_PREFERENCES_ADDITIONS = $(firstword $(wildcard $(addsuffix /WebPreferencesAdditions.yaml, $(WEBKITADDITIONS_HEADER_SEARCH_PATHS))))

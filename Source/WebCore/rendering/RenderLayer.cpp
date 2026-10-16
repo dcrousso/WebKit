@@ -6938,6 +6938,7 @@ TextStream& operator<<(TextStream& ts, PaintBehavior behavior)
     case PaintBehavior::DraggableSnapshot: ts << "DraggableSnapshot"_s; break;
     case PaintBehavior::IncludeDocumentMarkers: ts << "IncludeDocumentMarkers"_s; break;
     case PaintBehavior::FastAndLowQualityFilters: ts << "FastAndLowQualityFilters"_s; break;
+    case PaintBehavior::IgnoreScaleDelegation: ts << "IgnoreScaleDelegation"_s; break;
     }
 
     return ts;

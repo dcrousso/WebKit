@@ -10367,8 +10367,14 @@ float Document::pixelSnappingScaleFactor() const
 #if PLATFORM(MAC)
     // With scaling delegated to the UI process the page scale lives on the layer, so the backing store
     // grid is deviceScaleFactor * pageScaleFactor rather than deviceScaleFactor alone.
-    if (documentPage->delegatesScaling())
-        scaleFactor *= documentPage->pageScaleFactor();
+    if (documentPage->delegatesScaling()) {
+        // Snapshots taken for the inspector are pixel-snapped as if the page scale were baked into layout,
+        // so that they match the non-delegated rendering. See snapshotFrameRectWithClip().
+        auto* localMainFrame = documentPage->localMainFrame();
+        auto* mainFrameView = localMainFrame ? localMainFrame->view() : nullptr;
+        if (!mainFrameView || !mainFrameView->paintBehavior().contains(PaintBehavior::IgnoreScaleDelegation))
+            scaleFactor *= documentPage->pageScaleFactor();
+    }
 #endif
     return scaleFactor;
 }

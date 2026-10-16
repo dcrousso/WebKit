@@ -38,8 +38,8 @@ public:
 
     WEBCORE_EXPORT HTMLTextFormControlElement& LEGACY_NODELETE textFormControlElement() const;
 
-#if PLATFORM(IOS_FAMILY)
     bool canScroll() const;
+#if PLATFORM(IOS_FAMILY)
     WEBCORE_EXPORT int innerLineHeight() const;
 #endif
 

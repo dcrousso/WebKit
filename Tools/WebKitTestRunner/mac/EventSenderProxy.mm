@@ -774,4 +774,59 @@ void EventSenderProxy::scaleGestureEnd(double scale)
     sendMagnifyEvent(*m_testController, m_position, ++m_eventNumber, absoluteTimeForEventTime(currentEventTime()), scale, NSEventPhaseEnded, "scaleGestureEnd"_s);
 }
 
+#if ENABLE(TOUCH_EVENTS)
+void EventSenderProxy::addTouchPoint(int, int)
+{
+}
+
+void EventSenderProxy::updateTouchPoint(int, int, int)
+{
+}
+
+void EventSenderProxy::touchStart(CompletionHandler<void()>&& completionHandler)
+{
+    if (completionHandler)
+        completionHandler();
+}
+
+void EventSenderProxy::touchMove(CompletionHandler<void()>&& completionHandler)
+{
+    if (completionHandler)
+        completionHandler();
+}
+
+void EventSenderProxy::touchEnd(CompletionHandler<void()>&& completionHandler)
+{
+    if (completionHandler)
+        completionHandler();
+}
+
+void EventSenderProxy::touchCancel(CompletionHandler<void()>&& completionHandler)
+{
+    if (completionHandler)
+        completionHandler();
+}
+
+void EventSenderProxy::clearTouchPoints()
+{
+}
+
+void EventSenderProxy::releaseTouchPoint(int)
+{
+}
+
+void EventSenderProxy::cancelTouchPoint(int)
+{
+}
+
+void EventSenderProxy::setTouchPointRadius(int, int)
+{
+}
+
+void EventSenderProxy::setTouchModifier(WKEventModifiers, bool)
+{
+}
+#endif // ENABLE(TOUCH_EVENTS)
+
+
 } // namespace WTR

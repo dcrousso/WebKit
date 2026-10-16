@@ -47,6 +47,7 @@
 #include "HTMLFormElement.h"
 #include "HistoryController.h"
 #include "HistoryItem.h"
+#include "InspectorInstrumentation.h"
 #include "JSDOMConvertAny.h"
 #include "JSDOMConvertInterface.h"
 #include "JSDOMGlobalObject.h"
@@ -1227,6 +1228,8 @@ void Navigation::setupInterceptionState(NavigateEvent& event, NavigationNavigati
                 // Only notify committed now if there are no handlers to wait for
                 auto shouldNotifyCommited = event.handlers().isEmpty() ? ShouldNotifyCommitted::Yes : ShouldNotifyCommitted::No;
                 updateForNavigation(entry->associatedHistoryItem(), navigationType, ShouldCopyStateObjectFromCurrentEntry::No, shouldNotifyCommited);
+
+                InspectorInstrumentation::didNavigateWithinPage(*frame());
             }
         }
     } else if (navigationType == NavigationNavigationType::Reload) {
@@ -1235,6 +1238,8 @@ void Navigation::setupInterceptionState(NavigateEvent& event, NavigationNavigati
     } else if (navigationType == NavigationNavigationType::Push || navigationType == NavigationNavigationType::Replace) {
         auto historyHandling = navigationType == NavigationNavigationType::Replace ? NavigationHistoryBehavior::Replace : NavigationHistoryBehavior::Push;
         protect(frame()->loader())->updateURLAndHistory(destination.url(), classicHistoryAPIState, historyHandling);
+
+        InspectorInstrumentation::didNavigateWithinPage(*frame());
     }
 
     if (RefPtr transition = m_transition)

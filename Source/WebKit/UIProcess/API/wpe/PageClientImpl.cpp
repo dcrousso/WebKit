@@ -607,11 +607,11 @@ void PageClientImpl::callAfterNextPresentationUpdate(CompletionHandler<void()>&&
     m_view.callAfterNextPresentationUpdate(WTF::move(callback));
 }
 
-RefPtr<ViewSnapshot> PageClientImpl::takeViewSnapshot(std::optional<WebCore::IntRect>&& clipRect)
+RefPtr<ViewSnapshot> PageClientImpl::takeViewSnapshot(std::optional<WebCore::IntRect>&& clipRect, bool nominalResolution)
 {
 #if ENABLE(WPE_PLATFORM)
     if (m_view.wpeView()) {
-        auto snapshot = static_cast<WKWPE::ViewPlatform&>(m_view).takeViewSnapshot(WTF::move(clipRect));
+        auto snapshot = static_cast<WKWPE::ViewPlatform&>(m_view).takeViewSnapshot(WTF::move(clipRect), nominalResolution);
         // FIXME Forward the Expected in https://webkit.org/b/300271
         if (snapshot)
             return WTF::move(snapshot.value());

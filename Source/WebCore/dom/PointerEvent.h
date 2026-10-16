@@ -41,8 +41,8 @@
 #pragma clang diagnostic pop
 #endif
 
-#if ENABLE(TOUCH_EVENTS) && (PLATFORM(WPE) || PLATFORM(GTK))
-#include "PlatformTouchEvent.h"
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS_FAMILY)
+#include <WebCore/PlatformTouchEvent.h>
 #endif
 
 namespace WebCore {
@@ -99,14 +99,18 @@ public:
     static Ref<PointerEvent> create(const AtomString& type, MouseButton, const MouseEvent&, PointerID, const String& pointerType, CanBubble, IsCancelable);
     static Ref<PointerEvent> create(const AtomString& type, PointerID, const String& pointerType, IsPrimary = IsPrimary::No);
 
-#if ENABLE(TOUCH_EVENTS) && (PLATFORM(IOS_FAMILY) || PLATFORM(WPE) || PLATFORM(GTK))
+#if ENABLE(TOUCH_EVENTS)
     static Ref<PointerEvent> create(const PlatformTouchEvent&, const Vector<Ref<PointerEvent>>& coalescedEvents, const Vector<Ref<PointerEvent>>& predictedEvents, unsigned touchIndex, bool isPrimary, Ref<WindowProxy>&&, const DoublePoint& touchDelta = { });
     static Ref<PointerEvent> create(const PlatformTouchEvent&, const Vector<Ref<PointerEvent>>& coalescedEvents, const Vector<Ref<PointerEvent>>& predictedEvents, CanBubble, IsCancelable, unsigned touchIndex, bool isPrimary, Ref<WindowProxy>&& view, const DoublePoint& touchDelta = { });
     static Ref<PointerEvent> create(const AtomString& type, const PlatformTouchEvent&, const Vector<Ref<PointerEvent>>& coalescedEvents, const Vector<Ref<PointerEvent>>& predictedEvents, unsigned touchIndex, bool isPrimary, Ref<WindowProxy>&&, const DoublePoint& touchDelta = { });
 #endif
 
-#if ENABLE(TOUCH_EVENTS) && (PLATFORM(WPE) || PLATFORM(GTK))
+#if ENABLE(TOUCH_EVENTS)
+#if PLATFORM(WPE) || PLATFORM(GTK)
     static unsigned pointerIdForTouchPoint(const PlatformTouchPoint&);
+#elif !ENABLE(IOS_TOUCH_EVENTS)
+    static unsigned pointerIdForTouchPoint(const PlatformTouchPoint& point) { return point.id();  }
+#endif
 #endif
 
     virtual ~PointerEvent();
@@ -194,7 +198,7 @@ private:
     PointerEvent();
     PointerEvent(const AtomString&, Init&&, IsTrusted);
     PointerEvent(const AtomString& type, PointerID, const String& pointerType, IsPrimary);
-#if ENABLE(TOUCH_EVENTS) && (PLATFORM(IOS_FAMILY) || PLATFORM(WPE) || PLATFORM(GTK))
+#if ENABLE(TOUCH_EVENTS)
     PointerEvent(const AtomString& type, const PlatformTouchEvent&, const Vector<Ref<PointerEvent>>& coalescedEvents, const Vector<Ref<PointerEvent>>& predictedEvents, CanBubble canBubble, IsCancelable isCancelable, unsigned touchIndex, bool isPrimary, Ref<WindowProxy>&&, const DoublePoint& touchDelta = { });
 #endif
 

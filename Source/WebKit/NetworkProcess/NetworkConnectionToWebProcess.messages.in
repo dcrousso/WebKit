@@ -78,12 +78,15 @@ messages -> NetworkConnectionToWebProcess WantsDispatchMessage {
     [EnabledBy=AllowTestOnlyIPC] GeneralStoragePathForTesting() -> (String path);
 
     SetCaptureExtraNetworkLoadMetricsEnabled(bool enabled)
+    SetEmulateOfflineState(bool offline) -> (bool success, bool isOnLine) Synchronous
 
     [EnabledBy=WebSocketEnabled] CreateSocketChannel(WebCore::ResourceRequest request, String protocol, WebCore::WebSocketIdentifier identifier, WebKit::WebPageProxyIdentifier webPageProxyID, std::optional<WebCore::FrameIdentifier> frameID, std::optional<WebCore::PageIdentifier> pageID, struct WebCore::ClientOrigin clientOrigin, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<WebCore::AdvancedPrivacyProtections> protections, enum:uint8_t WebCore::StoredCredentialsPolicy storedCredentialsPolicy, enum:bool WebCore::IsInitiatedByDedicatedWorker isInitiatedByDedicatedWorker)
 
     CountWebSocketChannelsForTesting() -> (uint32_t count)
 
     ClearPageSpecificData(WebCore::PageIdentifier pageID);
+
+    SetCookieFromResponse(URL firstParty, struct WebCore::SameSiteInfo sameSiteInfo, URL url, String setCookieValue);
 
     [EnabledBy=StorageAccessAPIEnabled] RemoveStorageAccessForFrame(WebCore::FrameIdentifier frameID, WebKit::WebPageProxyIdentifier webPageProxyID);
     LogUserInteraction(WebCore::RegistrableDomain domain)

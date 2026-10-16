@@ -35,6 +35,7 @@
 #include "MessageSenderInlines.h"
 #include "UpdateInfo.h"
 #include "WebPageProxy.h"
+#include "WebPageInspectorController.h"
 #include <WebCore/Region.h>
 
 namespace WebKit {
@@ -114,6 +115,19 @@ void DrawingAreaProxyWC::incorporateUpdate(UpdateInfo&& updateInfo)
 void DrawingAreaProxyWC::discardBackingStore()
 {
     m_backingStore = std::nullopt;
+}
+
+void DrawingAreaProxyWC::captureFrame()
+{
+    if (!m_backingStore)
+        return;
+    auto surface = m_backingStore->surface();
+    if (!surface)
+        return;
+    auto image = surface->makeImageSnapshot();
+    if (!image)
+        return;
+    page()->inspectorController().didPaint(WTF::move(image));
 }
 
 } // namespace WebKit

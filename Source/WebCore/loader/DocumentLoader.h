@@ -186,6 +186,8 @@ public:
 
     WEBCORE_EXPORT virtual void detachFromFrame(LoadWillContinueInAnotherProcess);
 
+    void replacedByFragmentNavigation(LocalFrame&);
+
     WEBCORE_EXPORT FrameLoader* LEGACY_NODELETE frameLoader() const;
     WEBCORE_EXPORT SubresourceLoader* LEGACY_NODELETE mainResourceLoader() const;
     WEBCORE_EXPORT RefPtr<FragmentedSharedBuffer> mainResourceData() const;

@@ -141,6 +141,7 @@ public:
     static String keyCodeStringForGdkKeycode(unsigned);
     static String keyIdentifierForGdkKeyval(unsigned);
     static int windowsKeyCodeForGdkKeyval(unsigned);
+    static unsigned gdkKeyCodeForWindowsKeyCode(int);
     static String singleCharacterStringForGdkKeyval(unsigned);
 #endif
 
