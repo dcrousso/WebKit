@@ -219,6 +219,12 @@ void FrameInspectorController::connectFrontend(Inspector::FrontendChannel& front
     UNUSED_PARAM(isAutomaticInspection);
     UNUSED_PARAM(immediatelyPause);
 
+    // Playwright begin
+    // Child frames copy parent's frontend connection.
+    if (!m_frame->isMainFrame() && m_frontendRouter->hasFrontends())
+        return;
+    // Playwright end
+
     if (auto* page = m_frame->page())
         page->settings().setDeveloperExtrasEnabled(true);
 
@@ -237,6 +243,19 @@ void FrameInspectorController::connectFrontend(Inspector::FrontendChannel& front
     // The node may belong to a document the frame has since navigated away from.
     if (RefPtr node = std::exchange(m_pendingNodeToInspect, nullptr); node && m_domAgent && &node->document() == m_frame->document())
         CheckedRef { *m_domAgent }->inspect(*node);
+
+    // Playwright begin
+    // Auto attach/enable agents for subframes.
+    if (!m_frame->isMainFrame()) {
+        LocalFrame* localMainFrame = m_frame->page()->localMainFrame();
+        if (localMainFrame) {
+            Ref mainFrameController = localMainFrame->inspectorController();
+            auto* mainFrameConsoleAgent = mainFrameController->m_instrumentingAgents->webConsoleAgent();
+            if (mainFrameConsoleAgent && mainFrameConsoleAgent->enabled())
+                m_instrumentingAgents->webConsoleAgent()->enable();
+        }
+    }
+    // Playwright end
 }
 
 void FrameInspectorController::inspect(Node& node)

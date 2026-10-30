@@ -166,6 +166,7 @@ WebSocketChannel::ConnectStatus WebSocketChannel::connect(const URL& url, const 
     m_inspector.didCreateWebSocket(url);
     m_url = request->url();
     m_inspector.willSendWebSocketHandshakeRequest(*request);
+    WebProcess::singleton().applyOverrideLanguagesToRequest(*request);
     Ref mainFrame = frame->mainFrame();
 
     Ref policySourceFrame = [&] -> Ref<Frame> {

@@ -35,6 +35,7 @@
 #import <CoreGraphics/CGContext.h>
 #import <WebCore/CachedImage.h>
 #import <WebCore/ContainerNodeInlines.h>
+#import <WebCore/DataTransfer.h>
 #import <WebCore/DocumentPage.h>
 #import <WebCore/DragController.h>
 #import <WebCore/Editor.h>
@@ -89,7 +90,7 @@ static RefPtr<ShareableBitmap> convertDragImageToBitmap(DragImage image, const I
     return bitmap;
 }
 
-void WebDragClient::startDrag(DragItem dragItem, DataTransfer&, Frame& frame, const std::optional<NodeIdentifier>& nodeID)
+void WebDragClient::startDrag(DragItem dragItem, DataTransfer& dataTransfer, Frame& frame, const std::optional<NodeIdentifier>& nodeID)
 {
     auto& image = dragItem.image;
 
@@ -106,7 +107,7 @@ void WebDragClient::startDrag(DragItem dragItem, DataTransfer&, Frame& frame, co
         return;
 
     m_page->willStartDrag();
-    m_page->send(Messages::WebPageProxy::StartDrag(dragItem, WTF::move(*handle), nodeID, frame.frameID()));
+    m_page->send(Messages::WebPageProxy::StartDrag(dragItem, dataTransfer.sourceOperationMask(), WTF::move(*handle), nodeID, frame.frameID()));
 }
 
 void WebDragClient::didConcludeEditDrag()
@@ -131,7 +132,8 @@ static RefPtr<WebCore::CachedImage> cachedImage(Element& element)
 
 void WebDragClient::declareAndWriteDragImage(const String& pasteboardName, Element& element, const URL& url, const String& label, LocalFrame*)
 {
-    ASSERT(pasteboardName == String(NSPasteboardNameDrag));
+    if (pasteboardName != String(NSPasteboardNameDrag))
+        return;
 
     RefPtr image = cachedImage(element);
 

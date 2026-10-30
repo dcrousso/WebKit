@@ -44,6 +44,11 @@ void LoaderStrategy::prioritizeResourceLoads(const Vector<Ref<SubresourceLoader>
 {
 }
 
+bool LoaderStrategy::setEmulateOfflineState(bool)
+{
+    return false;
+}
+
 ResourceResponse LoaderStrategy::responseFromResourceLoadIdentifier(ResourceLoaderIdentifier)
 {
     return { };

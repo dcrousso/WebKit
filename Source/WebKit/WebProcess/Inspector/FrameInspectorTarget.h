@@ -61,6 +61,8 @@ public:
 
     static String toTargetID(WebCore::FrameIdentifier, WebCore::ProcessIdentifier);
 
+    void didCreateSubframe(WebFrame&);
+
 private:
     void connectToCurrentFrame();
 

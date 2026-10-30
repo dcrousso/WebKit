@@ -256,13 +256,13 @@ void RenderTextControl::layoutExcludedChildren(RelayoutChildren relayoutChildren
     }
 }
 
-#if PLATFORM(IOS_FAMILY)
 bool RenderTextControl::canScroll() const
 {
     auto innerText = innerTextElement();
     return innerText && innerText->renderer() && innerText->renderer()->hasNonVisibleOverflow();
 }
 
+#if PLATFORM(IOS_FAMILY)
 int RenderTextControl::innerLineHeight() const
 {
     if (auto innerTextElement = this->innerTextElement(); innerTextElement && innerTextElement->renderer())

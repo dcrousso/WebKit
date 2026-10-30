@@ -186,6 +186,7 @@ AccentColorEnabled:
       "PLATFORM(COCOA)" : true
       default: false
 
+# Playwright: enable on all platforms to align with Safari.
 AccessHandleEnabled:
   type: bool
   status: mature
@@ -197,6 +198,7 @@ AccessHandleEnabled:
     "PLATFORM(GTK) || PLATFORM(WPE)" : true
     default: false
     WebKitLegacy: false
+    WebKit: true
 
 AccessibilityFormErrorDetectionEnabled:
   type: bool
@@ -757,9 +759,7 @@ BlobFileAccessEnforcementEnabled:
   humanReadableName: "Enforce blob backed file access valid for web process"
   humanReadableDescription: "Validate file backed blobs were created by the correct web process"
   sharedPreferenceForWebProcess: true
-  defaultValue:
-    "PLATFORM(COCOA)": true
-    default: false
+  defaultValue: false
 
 BlockMediaLayerRehostingInWebContentProcess:
   type: bool
@@ -1731,6 +1731,7 @@ CrossOriginEmbedderPolicyEnabled:
     default: false
     WebKit: true
 
+# Playwright: disable setting.
 CrossOriginOpenerPolicyEnabled:
   type: bool
   status: stable
@@ -1843,7 +1844,7 @@ DataListElementEnabled:
   humanReadableName: "DataList Element"
   humanReadableDescription: "Enable datalist elements"
   defaultValue:
-    "(PLATFORM(COCOA) && !PLATFORM(WATCHOS)) || PLATFORM(GTK) || PLATFORM(WPE)": true
+    "(PLATFORM(COCOA) && !PLATFORM(WATCHOS)) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(WIN)": true
     default: false
     WebKitLegacy: false
   sharedPreferenceForWebProcess: true
@@ -2013,7 +2014,7 @@ DirectoryUploadEnabled:
   defaultValue:
     default: false
     WebKit:
-      "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE)": true
+      "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(WIN)": true
       default: false
 
 # FIXME: Starting the preference name with "Disable" is inconsistent with most other preferences and should be changed.
@@ -2419,6 +2420,7 @@ FileReaderAPIEnabled:
   defaultValue: true
   disableInLockdownMode: true
 
+# Playwright: enable on all platforms to align with Safari.
 FileSystemEnabled:
   type: bool
   status: mature
@@ -2430,9 +2432,11 @@ FileSystemEnabled:
     "PLATFORM(GTK) || PLATFORM(WPE)" : true
     default: false
     WebKitLegacy: false
+    WebKit: true
   disableInLockdownMode: true
   sharedPreferenceForWebProcess: true
 
+# Playwright: enable on all platforms to align with Safari.
 FileSystemHandleSerializationEnabled:
   type: bool
   status: stable
@@ -2443,9 +2447,11 @@ FileSystemHandleSerializationEnabled:
     "PLATFORM(COCOA)" : true
     default: false
     WebKitLegacy: false
+    WebKit: true
   disableInLockdownMode: true
   sharedPreferenceForWebProcess: true
 
+# Playwright: enable on all platforms to align with Safari.
 FileSystemWritableStreamEnabled:
   type: bool
   status: stable
@@ -2457,6 +2463,7 @@ FileSystemWritableStreamEnabled:
     "PLATFORM(GTK) || PLATFORM(WPE)": true
     default: false
     WebKitLegacy: false
+    WebKit: true
   disableInLockdownMode: true
   sharedPreferenceForWebProcess: true
 
@@ -2559,7 +2566,7 @@ FullScreenEnabled:
   hidden: EXPERIMENTAL_FULLSCREEN_API_HIDDEN
   inspectorOverride: true
   defaultValue:
-    "PLATFORM(GTK) || PLATFORM(WPE)": true
+    "PLATFORM(WIN) || PLATFORM(GTK) || PLATFORM(WPE)": true
     default: false
     WebKitLegacy: false
   sharedPreferenceForWebProcess: true
@@ -2813,7 +2820,7 @@ HardwareAccelerationEnabled:
   status: internal
   humanReadableName: "Hardware acceleration"
   humanReadableDescription: "Enable hardware acceleration"
-  condition: PLATFORM(GTK) || ENABLE(WPE_PLATFORM)
+  condition: PLATFORM(GTK) || PLATFORM(WPE)
   defaultValue: true
 
 HeadingOffsetEnabled:
@@ -3233,11 +3240,12 @@ InspectorMaximumResourcesContentSize:
     default: 200
     WebKitLegacy: 200
 
+# Playwright: disable setting.
 InspectorStartsAttached:
   type: bool
   status: embedder
   excludeFrom: [ WebKitLegacy, WebCore ]
-  defaultValue: true
+  defaultValue: false
 
 InspectorSupportsShowingCertificate:
   type: bool
@@ -4455,6 +4463,7 @@ MuteCameraOnMicrophoneInterruptionEnabled:
       "PLATFORM(IOS_FAMILY)": true
       default: false
 
+# Playwright: also enable on Windows to align with other platforms.
 NavigationAPIEnabled:
   type: bool
   status: stable
@@ -4462,7 +4471,7 @@ NavigationAPIEnabled:
   humanReadableName: "Navigation API"
   humanReadableDescription: "Enable Navigation API"
   defaultValue:
-    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE)": true
+    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(WIN)": true
     default: false
     WebKitLegacy: false
 
@@ -4923,7 +4932,7 @@ PointerLockEnabled:
   defaultValue:
     "PLATFORM(IOS_FAMILY)": false
     default: true
-    WebCore: false
+    WebCore: true
 
 PopoverAttributeEnabled:
   type: bool
@@ -5402,7 +5411,7 @@ ScreenOrientationAPIEnabled:
   humanReadableDescription: "Enable Screen Orientation API"
   defaultValue:
     default: false
-    WebKit: WebKit::defaultShouldEnableScreenOrientationAPI()
+    WebKit: true
   sharedPreferenceForWebProcess: true
   richJavaScript: true
 
@@ -6090,6 +6099,7 @@ StandardFontFamily:
     WebKitLegacy: '"Times"_str'
     WebCore: '""_str'
 
+# Playwright: enable on all platforms to align with Safari.
 StorageAPIEnabled:
   type: bool
   status: stable
@@ -6101,7 +6111,9 @@ StorageAPIEnabled:
     "PLATFORM(GTK) || PLATFORM(WPE)": true
     default: false
     WebKitLegacy: false
+    WebKit: true
 
+# Playwright: enable on all platforms to align with Safari.
 StorageAPIEstimateEnabled:
   type: bool
   status: stable
@@ -6113,6 +6125,7 @@ StorageAPIEstimateEnabled:
     "PLATFORM(GTK) || PLATFORM(WPE)": true
     default: false
     WebKitLegacy: false
+    WebKit: true
 
 StorageAccessAPIEnabled:
   type: bool

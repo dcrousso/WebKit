@@ -219,6 +219,11 @@ void InspectorRuntimeAgent::callFunctionOn(InjectedScript& injectedScript, const
         unmuteConsole();
 }
 
+Protocol::ErrorStringOr<void> InspectorRuntimeAgent::addBinding(const String&)
+{
+    return makeUnexpected("Not implemented in this type of agent."_s);
+}
+
 Protocol::ErrorStringOr<Ref<Protocol::Runtime::ObjectPreview>> InspectorRuntimeAgent::getPreview(const Protocol::Runtime::RemoteObjectId& objectId)
 {
     Protocol::ErrorString errorString;

@@ -228,6 +228,9 @@ enum class WebCore::UserInterfaceLayoutDirection : bool;
 
     bool httpsUpgradeEnabled;
 
+    std::optional<int> deviceOrientationOverride;
+    bool shouldPauseInInspectorWhenShown;
+
 #if ENABLE(APP_HIGHLIGHTS)
     WebCore::HighlightVisibility appHighlightsVisible;
 #endif

@@ -229,6 +229,8 @@ public:
     bool hasCommittedWebArchive() const { return m_hasCommittedWebArchive; }
     void setHasCommittedWebArchive() { m_hasCommittedWebArchive = true; }
 
+    static Vector<Ref<WebProcessProxy>> allProcessesForInspector();
+
     void initializeWebProcess(WebProcessCreationParameters&&);
 
     unsigned suspendedPageCount() const;

@@ -326,6 +326,9 @@ public:
     void setEmulatedConditions(std::optional<uint64_t> bandwidthBytesPerSecond, Seconds latency);
 #endif
 
+    bool emulateOfflineState() const { return m_emulateOfflineState; }
+    void setEmulateOfflineState(bool offline) { m_emulateOfflineState = offline; }
+
 #if PLATFORM(COCOA)
     virtual void clearProxyConfigData() { }
     virtual void setProxyConfigData(const Vector<std::pair<Vector<uint8_t>, std::optional<WTF::UUID>>>&) { };
@@ -495,6 +498,7 @@ protected:
     std::optional<uint64_t> m_emulatedBandwidthBytesPerSecond;
     Seconds m_emulatedLatency;
 #endif
+    bool m_emulateOfflineState { false };
 #if ENABLE(DECLARATIVE_WEB_PUSH)
     bool m_isDeclarativeWebPushEnabled { false };
 #endif

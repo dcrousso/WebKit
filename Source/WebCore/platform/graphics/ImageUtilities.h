@@ -82,7 +82,7 @@ WEBCORE_EXPORT std::expected<std::pair<String, Vector<IntSize>>, ImageDecodingEr
 WEBCORE_EXPORT std::expected<Vector<std::pair<String, float>>, ImageDecodingError> imageMetadataFromImageData(std::span<const uint8_t>);
 WEBCORE_EXPORT RefPtr<SharedBuffer> createIconDataFromBitmaps(Vector<Ref<ShareableBitmap>>&&);
 
-Vector<uint8_t> encodeData(CGImageRef, const String& mimeType, std::optional<double> quality = std::nullopt);
+WEBCORE_EXPORT Vector<uint8_t> encodeData(CGImageRef, const String& mimeType, std::optional<double> quality = std::nullopt);
 WEBCORE_EXPORT String encodeDataURL(CGImageRef, const String& mimeType, std::optional<double> quality = std::nullopt);
 WEBCORE_EXPORT uint8_t LEGACY_NODELETE verifyImageBufferIsBigEnough(std::span<const uint8_t> buffer);
 RetainPtr<CFStringRef> utiFromImageBufferMIMEType(const String& mimeType);

@@ -138,12 +138,14 @@ void ProxyingPageAgent::frameNavigated(IPC::Connection& connection, FrameIdentif
 
 void ProxyingPageAgent::domContentEventFired(double timestamp)
 {
-    m_frontendDispatcher->domContentEventFired(timestamp);
+    // FIXME: <https://webkit.org/b/308895> plumb FrameIdentifier through the IPC message.
+    m_frontendDispatcher->domContentEventFired(timestamp, { });
 }
 
 void ProxyingPageAgent::loadEventFired(double timestamp)
 {
-    m_frontendDispatcher->loadEventFired(timestamp);
+    // FIXME: <https://webkit.org/b/308895> plumb FrameIdentifier through the IPC message.
+    m_frontendDispatcher->loadEventFired(timestamp, { });
 }
 
 void ProxyingPageAgent::frameDetached(FrameIdentifier)
@@ -755,7 +757,72 @@ CommandResult<void> ProxyingPageAgent::setShowPaintRects(bool show)
     return { };
 }
 
+CommandResult<void> ProxyingPageAgent::goBack()
+{
+    return { };
+}
+
+CommandResult<void> ProxyingPageAgent::goForward()
+{
+    return { };
+}
+
+CommandResult<void> ProxyingPageAgent::overridePlatform(const String&)
+{
+    return { };
+}
+
+CommandResult<void> ProxyingPageAgent::setForcedColors(std::optional<Protocol::Page::ForcedColors>&&)
+{
+    return { };
+}
+
+CommandResult<void> ProxyingPageAgent::setTimeZone(const String&)
+{
+    return { };
+}
+
+CommandResult<void> ProxyingPageAgent::setTouchEmulationEnabled(bool)
+{
+    return { };
+}
+
 CommandResult<void> ProxyingPageAgent::setEmulatedMedia(const String&)
+{
+    return { };
+}
+
+CommandResult<void> ProxyingPageAgent::insertText(const String&)
+{
+    return { };
+}
+
+CommandResult<void> ProxyingPageAgent::setInterceptFileChooserDialog(bool)
+{
+    return { };
+}
+
+CommandResult<void> ProxyingPageAgent::setDefaultBackgroundColorOverride(RefPtr<JSON::Object>&&)
+{
+    return { };
+}
+
+CommandResult<void> ProxyingPageAgent::createUserWorld(const String&)
+{
+    return { };
+}
+
+CommandResult<void> ProxyingPageAgent::setBypassCSP(bool)
+{
+    return { };
+}
+
+CommandResult<void> ProxyingPageAgent::crash()
+{
+    return { };
+}
+
+CommandResult<void> ProxyingPageAgent::updateScrollingState()
 {
     return { };
 }
@@ -765,7 +832,7 @@ CommandResult<String> ProxyingPageAgent::snapshotNode(Protocol::DOM::NodeId)
     return makeUnexpected("Not yet implemented under Site Isolation"_s);
 }
 
-CommandResult<String> ProxyingPageAgent::snapshotRect(int, int, int, int, Protocol::Page::CoordinateSystem)
+CommandResult<String> ProxyingPageAgent::snapshotRect(int, int, int, int, Protocol::Page::CoordinateSystem, std::optional<bool>&&, std::optional<Protocol::Page::ImageFormat>&&, std::optional<int>&&)
 {
     return makeUnexpected("Not yet implemented under Site Isolation"_s);
 }
@@ -783,12 +850,10 @@ void ProxyingPageAgent::archive(Ref<ArchiveCallback>&& callback)
 }
 #endif
 
-#if !PLATFORM(COCOA)
 CommandResult<void> ProxyingPageAgent::setScreenSizeOverride(std::optional<int>&&, std::optional<int>&&)
 {
     return { };
 }
-#endif
 
 } // namespace Inspector
 

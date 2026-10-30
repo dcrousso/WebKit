@@ -455,7 +455,8 @@ void CurlRequest::didCompleteTransfer(CURLcode result)
         && m_response.statusCode >= 200 && m_response.statusCode < 400
         && !m_response.expectedContentLength;
 
-    bool isProxyAuthenticationRequired = result == CURLE_RECV_ERROR && m_response.httpConnectCode == 407;
+    // curl 8.20 and newer report CURLE_COULDNT_CONNECT instead of CURLE_RECV_ERROR when CONNECT fails with a 407.
+    bool isProxyAuthenticationRequired = (result == CURLE_RECV_ERROR || result == CURLE_COULDNT_CONNECT) && m_response.httpConnectCode == 407;
     if (needToInvokeDidReceiveResponse() && (result == CURLE_OK || isProxyAuthenticationRequired || isConnectionCloseEndOfBody)) {
         // Processing of didReceiveResponse() has not been completed. (For example, HEAD Method, Proxy authentication, etc.)
         m_mustInvokeCancelTransfer = true;
